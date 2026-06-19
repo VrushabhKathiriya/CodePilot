@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
 enum AuthProvider {
   local
   google
@@ -18,107 +22,518 @@ enum OTPPurpose {
   EMAIL_CHANGE
 }
 
-model User {
-  id                String   @id @default(uuid())
-
-  fullName          String
-  username          String   @unique
-  email             String   @unique
-
-  passwordHash      String?
-
-  authProvider     AuthProvider  @default(local)
-
-  googleId          String?  @unique
-
-  isVerified        Boolean  @default(false)
-
-  isActive         Boolean       @default(true)
-
-  avatarUrl         String?
-
-  bio               String?
-
-  college           String?
-
-  location          String?
-
-  githubUsername    String?
-
-  codeforcesHandle  String?
-
-  leetcodeUsername  String?
-
-  lastLogin         DateTime?
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  deletedAt         DateTime?
-
-  otps              OTP[]
-  refreshTokens     RefreshToken[]
-  sessions          Session[]
+enum CodingPlatform {
+  LEETCODE
+  CODEFORCES
+  CODECHEF
+  ATCODER
+  GEEKSFORGEEKS
 }
 
+enum ProfileVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+// ─────────────────────────────────────────────
+// USER  (auth + identity only)
+// ─────────────────────────────────────────────
+
+model User {
+  id           String       @id @default(uuid())
+
+  fullName     String
+  username     String       @unique
+  email        String       @unique
+
+  passwordHash String?
+
+  authProvider AuthProvider @default(local)
+  googleId     String?      @unique
+
+  isVerified   Boolean      @default(false)
+  isActive     Boolean      @default(true)
+
+  lastLogin    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  // profile & portfolio
+  profile             UserProfile?
+  educations          Education[]
+  experiences         Experience[]
+  achievements        Achievement[]
+  socialLinks         SocialLink[]
+  projects            Project[]
+
+  // competitive programming data
+  codingPlatformStats CodingPlatformStats[]
+  contestHistory      ContestHistory[]
+  topicStats          TopicStats[]
+  cpDailyActivities   CPDailyActivity[]
+  platformBadges      PlatformBadge[]
+
+  // github / dev stats
+  githubStats         GitHubStats?
+  githubLanguages     GitHubLanguage[]
+  githubDailyActivities GitHubDailyActivity[]
+
+  // auth
+  otps          OTP[]
+  refreshTokens RefreshToken[]
+  sessions      Session[]
+}
+
+// ─────────────────────────────────────────────
+// USER PROFILE
+// ─────────────────────────────────────────────
+
+model UserProfile {
+  id     String @id @default(uuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  avatarUrl String?
+  bio       String?
+  country   String?
+
+  // platform handles — only saved after successful sync
+  githubUsername   String?
+  leetcodeUsername String?
+  codeforcesHandle String?
+  codechefUsername String?
+  atcoderUsername  String?
+  gfgUsername      String?
+
+  visibility       ProfileVisibility @default(PUBLIC)
+  profileCompleted Boolean           @default(false)
+
+  profileViews    Int       @default(0)
+  lastRefreshedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// SOCIAL LINKS
+// ─────────────────────────────────────────────
+
+model SocialLink {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform String  // "linkedin", "twitter", "portfolio", "resume", "youtube"
+  url      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, platform])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// EDUCATION
+// ─────────────────────────────────────────────
+
+model Education {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  instituteName  String
+  degree         String
+  branch         String?
+  startYear      Int?
+  graduationYear Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// EXPERIENCE
+// ─────────────────────────────────────────────
+
+model Experience {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  company     String
+  jobTitle    String
+  description String?
+
+  startMonth Int?
+  startYear  Int?
+  endMonth   Int?
+  endYear    Int?
+  isCurrent  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// ACHIEVEMENT / CERTIFICATE
+// ─────────────────────────────────────────────
+
+model Achievement {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title          String
+  description    String?
+  certificateUrl String?
+  issuer         String?
+  issueMonth     Int?
+  issueYear      Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// PROJECT  (manual — user adds their own)
+// Image 2 — "+ ADD PROJECT" section
+// ─────────────────────────────────────────────
+
+model Project {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  techStack   String[]   // ["Node.js", "React", "PostgreSQL"]
+  githubUrl   String?
+  liveUrl     String?
+  thumbnailUrl String?
+
+  displayOrder Int @default(0)  // for the sort/reorder button (↑↓ icon in screenshot)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// CODING PLATFORM STATS
+// Aggregate numbers per platform per user
+//
+// DSA panel  → LEETCODE rows  (easy/medium/hard solved)
+// CP panel   → CODEFORCES + CODECHEF rows  (rating, rank)
+// Total Questions card → sum of totalSolved across all rows
+// Total Contests card  → sum of contestsCount across all rows
+// ─────────────────────────────────────────────
+
+model CodingPlatformStats {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform CodingPlatform
+  handle   String
+
+  // rating — shown in Contest Rankings panel
+  rating    Int?
+  maxRating Int?
+  rank      String?   // "Knight", "Expert", "Pupil", "3 Star"
+
+  // problems solved — shown in DSA donut (LeetCode)
+  totalSolved  Int?
+  easySolved   Int?
+  mediumSolved Int?
+  hardSolved   Int?
+
+  // contests — shown in Total Contests panel
+  contestsCount Int?
+
+  // activity — shown in heatmap header
+  currentStreak    Int?
+  maxStreak        Int?
+  totalActiveDays  Int?
+  totalSubmissions Int?
+
+  lastSyncedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, platform])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// CONTEST HISTORY
+// One row per contest per user per platform
+// Powers the rating line graph
+// Graph switches platform via frontend filter on this table
+// ─────────────────────────────────────────────
+
+model ContestHistory {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform     CodingPlatform
+  contestName  String        // "Weekly Contest 504"
+  contestDate  DateTime      // x-axis of graph
+  rank         Int?          // "Rank: 3644"
+  rating       Int?          // y-axis of graph
+  ratingChange Int?          // +/- delta shown on tooltip
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, platform])
+}
+
+// ─────────────────────────────────────────────
+// TOPIC STATS
+// One row per topic per platform per user
+// DSA Topic Analysis  → filter by LEETCODE
+// CP Topic Analysis   → filter by CODEFORCES / CODECHEF
+// ─────────────────────────────────────────────
+
+model TopicStats {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform     CodingPlatform
+  topic        String    // "Arrays", "Dynamic Programming", "Binary Search"
+  problemCount Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, platform, topic])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// CP DAILY ACTIVITY  (competitive programming heatmap)
+// One row per day per platform per user
+// Powers the CP submission heatmap (first set of screenshots)
+// ─────────────────────────────────────────────
+
+model CPDailyActivity {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform    CodingPlatform
+  date        DateTime
+  submissions Int            @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, platform, date])
+  @@index([userId])
+  @@index([userId, date])
+}
+
+// ─────────────────────────────────────────────
+// PLATFORM BADGES / AWARDS
+// Powers the Awards section
+// ─────────────────────────────────────────────
+
+model PlatformBadge {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform     CodingPlatform
+  badgeName    String
+  badgeIconUrl String?
+  earnedAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, platform])
+}
+
+// ─────────────────────────────────────────────
+// GITHUB STATS  (aggregate numbers)
+// Powers the Stats panel: Stars, Commits, PRs, Issues
+// Total Contributions + Total Active Days cards
+// ─────────────────────────────────────────────
+
+model GitHubStats {
+  id     String @id @default(uuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  handle String
+
+  totalContributions Int?   // "Total Contributions: 88"
+  totalActiveDays    Int?   // "Total Active Days: 28"
+  totalCommits       Int?   // Stats panel — Commits: 78
+  totalStars         Int?   // Stats panel — Stars: 0
+  totalPRs           Int?   // Stats panel — PRs: 0
+  totalIssues        Int?   // Stats panel — Issues: 0
+  currentStreak      Int?   // heatmap header — Current.Streak: 0
+  maxStreak          Int?   // heatmap header — Max.Streak: 6
+  totalRepos         Int?
+  followers          Int?
+  following          Int?
+
+  lastSyncedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// GITHUB LANGUAGES
+// One row per language per user
+// Powers the Languages bar + percentage breakdown
+// JavaScript 67%, HTML 10%, Dart 11%, C++ 5%...
+// ─────────────────────────────────────────────
+
+model GitHubLanguage {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  language   String   // "JavaScript", "HTML", "Dart"
+  percentage Float    // 67.0, 10.0, 11.0
+  color      String?  // hex color for the bar segment e.g. "#f1e05a"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, language])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// GITHUB DAILY ACTIVITY  (GitHub heatmap)
+// Separate from CP heatmap — different section in UI
+// One row per day per user
+// ─────────────────────────────────────────────
+
+model GitHubDailyActivity {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date          DateTime
+  contributions Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([userId, date])
+}
+
+// ─────────────────────────────────────────────
+// UPCOMING CONTEST
+// Shared across all users — not per-user data
+// Fetched periodically from Codeforces + LeetCode APIs
+// and stored so all users see the same list
+// ─────────────────────────────────────────────
+
+model UpcomingContest {
+  id       String @id @default(uuid())
+
+  platform CodingPlatform
+  name     String          // "Weekly Contest 505"
+  url      String          // direct link to contest page
+  startTime DateTime       // when it starts
+  duration  Int            // duration in minutes
+  
+  fetchedAt DateTime @default(now())  // when we last pulled this from API
+
+  @@index([platform])
+  @@index([startTime])
+}
+
+// ─────────────────────────────────────────────
+// OTP
+// ─────────────────────────────────────────────
+
 model OTP {
-  id          String   @id @default(uuid())
+  id     String @id @default(uuid())
 
-  userId      String
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
-  email       String
+  email     String
+  otpCode   String
+  purpose   OTPPurpose
+  expiresAt DateTime
+  isUsed    Boolean    @default(false)
 
-  otpCode     String
-
-  purpose    OTPPurpose
-
-  expiresAt   DateTime
-
-  isUsed      Boolean  @default(false)
-
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([email])
 }
 
+// ─────────────────────────────────────────────
+// REFRESH TOKEN
+// ─────────────────────────────────────────────
+
 model RefreshToken {
-  id          String   @id @default(uuid())
+  id     String @id @default(uuid())
 
-  userId      String
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  tokenHash   String
-
-  expiresAt   DateTime
-
-  revoked     Boolean @default(false)
-
+  tokenHash String
+  expiresAt DateTime
+  revoked   Boolean   @default(false)
   revokedAt DateTime?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
-
 }
 
+// ─────────────────────────────────────────────
+// SESSION
+// ─────────────────────────────────────────────
+
 model Session {
-  id           String   @id @default(uuid())
+  id     String @id @default(uuid())
 
-  userId       String
-
-  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   ipAddress    String?
-
   userAgent    String?
-
   lastActivity DateTime?
-  
-  createdAt    DateTime @default(now())
+
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }

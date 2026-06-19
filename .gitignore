@@ -142,3 +142,24 @@ dist
 .svelte-kit
 
 # End of https://www.toptal.com/developers/gitignore/api/node
+
+### Project-specific additions ###
+
+# Prisma
+prisma/migrations/dev.db
+*.db
+
+# Uploaded files (if multer saves temp files locally before Cloudinary upload)
+uploads/
+tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Postman exports (if you export collections locally, optional - remove if you WANT to track these)
+*.postman_environment.json

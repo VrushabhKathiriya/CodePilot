@@ -5,6 +5,7 @@ import {
     addEducation, updateEducation, deleteEducation, addExperience, updateExperience, deleteExperience,
     addAchievement, updateAchievement, deleteAchievement
 } from "../controllers/user.controller.js";
+import upload from "../middlewares/multer.middleware.js";
 import verifyJWT from "../middlewares/auth.middleware.js"
 import { Router } from "express";
 
@@ -29,6 +30,12 @@ router.post("/verify-email-change", verifyJWT, verifyEmailChange);
 router.delete("/delete-account", verifyJWT, deleteAccount);
 
 // PROFILE
+router.patch(
+    "/avatar",
+    verifyJWT,
+    upload.single("avatar"),
+    uploadAvatar
+);
 router.get("/profile/:username", getUserProfile);
 router.put("/profile", verifyJWT, upsertUserProfile);
 router.patch("/info", verifyJWT, updateUserInfo);

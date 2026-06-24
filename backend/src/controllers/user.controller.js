@@ -663,7 +663,6 @@ export const updateUserInfo = asyncHandler(async (req, res) => {
 });
 
 // UPLOAD AVATAR
-// UPLOAD AVATAR
 export const uploadAvatar = asyncHandler(async (req, res) => {
 
     if (!req.file) {
@@ -1266,4 +1265,135 @@ export const deleteAchievement = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, null, "Achievement deleted successfully"));
+});
+
+// ADD PROJECT
+export const addProject = asyncHandler(async (req, res) => {
+    const { title, description, techStack, githubUrl, liveUrl, thumbnailUrl } = req.body;
+
+    if (!title || !description || !techStack) {
+        throw new ApiError(400, "Title, description and techStack are required");
+    }
+
+    if (!Array.isArray(techStack)) {
+        throw new ApiError(400, "techStack must be an array of strings");
+    }
+
+    const existingCount = await prisma.project.count({
+        where: { userId: req.user.id }
+    });
+
+    const project = await prisma.project.create({
+        data: {
+            userId:       req.user.id,
+            title:        title.trim(),
+            description:  description.trim(),
+            techStack,
+            githubUrl:    githubUrl    || null,
+            liveUrl:      liveUrl      || null,
+            thumbnailUrl: thumbnailUrl || null,
+            displayOrder: existingCount,
+        }
+    });
+
+    return res
+        .status(201)
+        .json(new ApiResponse(201, project, "Project added successfully"));
+});
+
+// UPDATE PROJECT
+export const updateProject = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { title, description, techStack, githubUrl, liveUrl, thumbnailUrl } = req.body;
+
+    const project = await prisma.project.findUnique({ where: { id } });
+
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    if (project.userId !== req.user.id) {
+        throw new ApiError(403, "Forbidden");
+    }
+
+    const data = {};
+
+    if (title       !== undefined) data.title       = title.trim();
+    if (description !== undefined) data.description = description.trim();
+    if (githubUrl    !== undefined) data.githubUrl    = githubUrl    || null;
+    if (liveUrl      !== undefined) data.liveUrl      = liveUrl      || null;
+    if (thumbnailUrl !== undefined) data.thumbnailUrl = thumbnailUrl || null;
+
+    if (techStack !== undefined) {
+        if (!Array.isArray(techStack)) {
+            throw new ApiError(400, "techStack must be an array of strings");
+        }
+        data.techStack = techStack;
+    }
+
+    const updated = await prisma.project.update({
+        where: { id },
+        data,
+    });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updated, "Project updated successfully"));
+});
+
+// DELETE PROJECT
+export const deleteProject = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const project = await prisma.project.findUnique({ where: { id } });
+
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    if (project.userId !== req.user.id) {
+        throw new ApiError(403, "Forbidden");
+    }
+
+    await prisma.project.delete({ where: { id } });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Project deleted successfully"));
+});
+
+// REORDER PROJECT
+export const reorderProjects = asyncHandler(async (req, res) => {
+    const { order } = req.body;
+
+    if (!Array.isArray(order) || order.length === 0) {
+        throw new ApiError(400, "Order array is required");
+    }
+
+    const projectIds = order.map(item => item.id);
+
+    const ownedProjects = await prisma.project.findMany({
+        where: {
+            id:     { in: projectIds },
+            userId: req.user.id,
+        },
+        select: { id: true }
+    });
+
+    if (ownedProjects.length !== order.length) {
+        throw new ApiError(403, "One or more projects do not belong to you");
+    }
+
+    await Promise.all(
+        order.map(item =>
+            prisma.project.update({
+                where: { id: item.id },
+                data:  { displayOrder: item.displayOrder },
+            })
+        )
+    );
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Projects reordered successfully"));
 });

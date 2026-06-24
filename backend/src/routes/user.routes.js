@@ -3,7 +3,7 @@ import {
     getUserProfile, upsertUserProfile, updateUserInfo, uploadAvatar, changePassword, forgotPassword,
     resetPassword, changeEmail, verifyEmailChange, deleteAccount, upsertSocialLink, deleteSocialLink,
     addEducation, updateEducation, deleteEducation, addExperience, updateExperience, deleteExperience,
-    addAchievement, updateAchievement, deleteAchievement
+    addAchievement, updateAchievement, deleteAchievement, addProject, updateProject, deleteProject, reorderProjects
 } from "../controllers/user.controller.js";
 import upload from "../middlewares/multer.middleware.js";
 import verifyJWT from "../middlewares/auth.middleware.js"
@@ -30,12 +30,7 @@ router.post("/verify-email-change", verifyJWT, verifyEmailChange);
 router.delete("/delete-account", verifyJWT, deleteAccount);
 
 // PROFILE
-router.patch(
-    "/avatar",
-    verifyJWT,
-    upload.single("avatar"),
-    uploadAvatar
-);
+router.patch("/avatar",verifyJWT,upload.single("avatar"),uploadAvatar);
 router.get("/profile/:username", getUserProfile);
 router.put("/profile", verifyJWT, upsertUserProfile);
 router.patch("/info", verifyJWT, updateUserInfo);
@@ -58,5 +53,11 @@ router.delete("/experience/:id", verifyJWT, deleteExperience);
 router.post("/achievement", verifyJWT, addAchievement);
 router.patch("/achievement/:id", verifyJWT, updateAchievement);
 router.delete("/achievement/:id", verifyJWT, deleteAchievement);
+
+// PROJECT
+router.post("/project", verifyJWT, addProject);
+router.patch("/project/reorder", verifyJWT, reorderProjects);
+router.patch("/project/:id", verifyJWT, updateProject);
+router.delete("/project/:id", verifyJWT, deleteProject);
 
 export default router;

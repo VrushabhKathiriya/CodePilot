@@ -24,7 +24,6 @@ const verifyJWT = asyncHandler(async (req, _, next) => {
     const user = await prisma.user.findUnique({
         where: { id: decoded.id },
         select: {
-            // ── core identity (lives on User) ──────────────────
             id:           true,
             fullName:     true,
             username:     true,
@@ -36,7 +35,6 @@ const verifyJWT = asyncHandler(async (req, _, next) => {
             createdAt:    true,
             updatedAt:    true,
 
-            // ── profile fields (moved to UserProfile) ──────────
             profile: {
                 select: {
                     avatarUrl:        true,
@@ -48,7 +46,7 @@ const verifyJWT = asyncHandler(async (req, _, next) => {
                     codechefUsername: true,
                     atcoderUsername:  true,
                     gfgUsername:      true,
-                    visibility:       true,   // ✅ fixed — was isPublic
+                    visibility:       true,   
                     profileCompleted: true,
                 }
             }

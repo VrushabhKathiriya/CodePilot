@@ -5,7 +5,6 @@ import ApiError from "../utils/ApiError.js";
 
 const TEMP_DIR = path.join(process.cwd(), "uploads", "temp");
 
-// Make sure the temp dir exists (fresh clones won't have it since it's gitignored)
 if (!fs.existsSync(TEMP_DIR)) {
     fs.mkdirSync(TEMP_DIR, { recursive: true });
 }
@@ -35,7 +34,7 @@ const upload = multer({
     storage,
     fileFilter: imageFileFilter,
     limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
+        fileSize: 5 * 1024 * 1024,
     },
 });
 

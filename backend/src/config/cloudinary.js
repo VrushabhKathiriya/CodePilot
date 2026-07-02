@@ -29,7 +29,6 @@ const uploadOnCloudinary = async (localFilePath, options = {}) => {
 
         return response.secure_url;
     } catch (error) {
-        // Clean up the temp file even if the upload failed, so it doesn't pile up
         if (fs.existsSync(localFilePath)) {
             fs.unlinkSync(localFilePath);
         }

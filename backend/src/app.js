@@ -6,6 +6,10 @@ import userRoutes from "./routes/user.routes.js";
 import codingplatformRoutes from "./routes/sync.routes.js";
 import cron from "node-cron";
 import { runUpcomingContestsRefresh } from "./controllers/sync.controller.js";
+import analyticsRouter from "./routes/analytics.routes.js";
+import aiRouter from "./routes/ai.routes.js";
+import recommendationRouter from "./routes/recommendation.routes.js";
+
 const app = express();  
 
 app.use(cors());
@@ -26,7 +30,12 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/users", userRoutes);
-app.use("/api/v1/codingplatforms", codingplatformRoutes)
+app.use("/api/v1/codingplatforms", codingplatformRoutes);
+
+// Analytics, AI Coach, Recommendations (Systems 2, 3, 4)
+app.use("/api/v1/analytics", analyticsRouter);
+app.use("/api/v1/ai", aiRouter);
+app.use("/api/v1/recommendations", recommendationRouter);
 
 app.use(errorHandler);
 

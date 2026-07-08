@@ -79,6 +79,9 @@ model User {
   githubLanguages     GitHubLanguage[]
   githubDailyActivities GitHubDailyActivity[]
 
+  // ai coach
+  aiCoachInsights AICoachInsight[]
+
   // auth
   otps          OTP[]
   refreshTokens RefreshToken[]
@@ -537,3 +540,83 @@ model Session {
 
   @@index([userId])
 }
+
+// ─────────────────────────────────────────────
+// ADD THESE TO YOUR EXISTING schema.prisma
+// ─────────────────────────────────────────────
+
+enum ProblemDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum InsightType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CONTEST_REVIEW
+  STUDY_PLAN
+}
+
+// ─────────────────────────────────────────────
+// PROBLEM BANK  (curated, static — System 4)
+// Not per-user — shared catalog of well-known problems
+// You seed this once with ~35+ problems
+// ─────────────────────────────────────────────
+
+model Problem {
+  id     String @id @default(uuid())
+
+  title      String
+  slug       String            // "two-sum", used to build the LeetCode URL
+  platform   CodingPlatform    // which platform this problem is from
+  topic      String            // "Dynamic Programming", "Graphs", "Binary Search"
+  difficulty ProblemDifficulty
+  ratingLevel Int?             // 800, 1000, 1200, ... for finer matching
+  url        String            // direct link to the problem
+
+  createdAt DateTime @default(now())
+
+  @@index([topic])
+  @@index([difficulty])
+  @@index([topic, difficulty])
+}
+
+// ─────────────────────────────────────────────
+// AI COACH INSIGHT  (System 3 — stores generated advice)
+// One row per coaching session, so user can see history
+// and you don't re-call Gemini on every single page load
+// ─────────────────────────────────────────────
+
+model AICoachInsight {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  insightType InsightType @default(DAILY)
+
+  // snapshot of the analytics used to generate this insight (for debugging/audit)
+  analyticsSnapshot Json
+
+  // Gemini's generated advice
+  insightText String
+
+  // weak/strong topics identified at the time (used by System 4 too)
+  weakTopics   String[]
+  strongTopics String[]
+
+  generatedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, generatedAt])
+  @@index([userId, insightType])
+}
+
+// ─────────────────────────────────────────────
+// ADD THIS RELATION FIELD INSIDE YOUR EXISTING User MODEL:
+// ─────────────────────────────────────────────
+//
+//   aiCoachInsights AICoachInsight[]
+//

@@ -82,6 +82,8 @@ model User {
   // ai coach
   aiCoachInsights AICoachInsight[]
 
+  careerSnapshots CareerReadinessSnapshot[]
+
   // auth
   otps          OTP[]
   refreshTokens RefreshToken[]
@@ -620,3 +622,28 @@ model AICoachInsight {
 //
 //   aiCoachInsights AICoachInsight[]
 //
+
+
+
+model CareerReadinessSnapshot {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Three individual scores (0-100)
+  dsaScore         Int  // problems solved, difficulty mix, topic coverage, contests
+  developmentScore Int  // GitHub activity, repos, streaks, projects
+  portfolioScore   Int  // profile completeness: bio, avatar, education, social links, achievements
+
+  // Final weighted composite
+  overallScore     Int  // (dsaScore * 0.4) + (developmentScore * 0.3) + (portfolioScore * 0.3)
+
+  // Breakdown stored so frontend can show "why did I get this score"
+  breakdown Json
+
+  computedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, computedAt])
+}

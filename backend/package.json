@@ -6,14 +6,19 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "db:seed": "node scripts/seedProblems.js",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@google/generative-ai": "^0.24.0",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.3",
     "axios": "^1.18.1",
     "bcrypt": "^6.0.0",

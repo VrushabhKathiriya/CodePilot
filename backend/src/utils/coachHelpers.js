@@ -1,43 +1,25 @@
-// ─────────────────────────────────────────────
-// COACH HELPERS
-// Rule-based insight generators and prompt builders.
-//
-// These provide deterministic coaching when Gemini
-// is unavailable and build type-specific prompts
-// for different coaching report formats.
-// ─────────────────────────────────────────────
-
-/**
- * Generates rule-based coaching insights from analytics.
- * Returns an array of human-readable coaching strings.
- * @param {Object} analytics — full analytics object from analytics service
- * @returns {string[]}
- */
+// RULE-BASED INSIGHTS
 export const generateRuleBasedInsights = (analytics) => {
     const insights = [];
     const { perPlatform, totals, topicStats, weakTopics, strongTopics, contestAnalytics } = analytics;
 
-    // ── Strong topics ──
     if (strongTopics && strongTopics.length > 0) {
         insights.push(`Your ${strongTopics[0]} skills are excellent — keep pushing to harder problems in this area.`);
     }
 
-    // ── Weak topics ──
     if (weakTopics && weakTopics.length > 0) {
         insights.push(`Focus more on ${weakTopics.join(" and ")} — these are your weakest areas right now.`);
     }
 
-    // ── Topic accuracy ──
     if (topicStats && topicStats.length > 0) {
         for (const topic of topicStats) {
             if (topic.accuracy !== null && topic.accuracy !== undefined && topic.accuracy < 60) {
                 insights.push(`${topic.topic} accuracy is only ${topic.accuracy}%. Practice more problems in this topic.`);
-                break; // only flag the worst one
+                break;
             }
         }
     }
 
-    // ── Rating growth ──
     for (const platform of (perPlatform || [])) {
         if (platform.monthlyGrowth !== null && platform.monthlyGrowth !== undefined) {
             if (platform.monthlyGrowth > 0) {
@@ -48,7 +30,6 @@ export const generateRuleBasedInsights = (analytics) => {
         }
     }
 
-    // ── Contest participation ──
     if (contestAnalytics) {
         if (contestAnalytics.totalContests < 5) {
             insights.push("You've participated in very few contests. Regular contest practice is key to improving under pressure.");
@@ -58,7 +39,6 @@ export const generateRuleBasedInsights = (analytics) => {
         }
     }
 
-    // ── Overall volume ──
     if (totals) {
         if (totals.totalSolved < 50) {
             insights.push("You've solved fewer than 50 problems. Aim for at least 100 to build strong fundamentals.");
@@ -67,7 +47,6 @@ export const generateRuleBasedInsights = (analytics) => {
         }
     }
 
-    // ── Rating-based difficulty suggestion ──
     for (const platform of (perPlatform || [])) {
         if (platform.currentRating) {
             const suggestedMin = platform.currentRating - 200;
@@ -77,10 +56,8 @@ export const generateRuleBasedInsights = (analytics) => {
         }
     }
 
-    // ── Prediction ──
-    const ratings = (perPlatform || []).map(p => p.currentRating).filter(Boolean);
     const growths = (perPlatform || []).map(p => p.monthlyGrowth).filter(g => g !== null);
-    if (ratings.length > 0 && growths.length > 0) {
+    if (growths.length > 0) {
         const avgGrowth = growths.reduce((a, b) => a + b, 0) / growths.length;
         if (avgGrowth > 0) {
             const twoMonthGain = Math.round(avgGrowth * 2);
@@ -95,10 +72,7 @@ export const generateRuleBasedInsights = (analytics) => {
     return insights;
 };
 
-// ─────────────────────────────────────────────
-// PROMPT BUILDERS for different report types
-// ─────────────────────────────────────────────
-
+// ANALYTICS SUMMARY BLOCK
 const buildAnalyticsSummaryBlock = (analytics) => {
     const { perPlatform, totals, topicStats, weakTopics, strongTopics } = analytics;
 
@@ -135,12 +109,7 @@ WEAK TOPICS: ${(weakTopics || []).join(", ") || "Not enough data yet"}
 STRONG TOPICS: ${(strongTopics || []).join(", ") || "Not enough data yet"}`;
 };
 
-/**
- * Builds a prompt for the AI coach based on the report type.
- * @param {"daily"|"weekly"|"monthly"|"contest_review"|"study_plan"} type
- * @param {Object} analytics
- * @returns {string}
- */
+// BUILD COACH PROMPT
 export const buildCoachPrompt = (type, analytics) => {
     const dataBlock = buildAnalyticsSummaryBlock(analytics);
 

@@ -1,7 +1,7 @@
 import axios from "axios";
 import ApiError from "../utils/ApiError.js";
 
-// Shared browser-like headers for LeetCode
+// LEETCODE HEADERS
 const LEETCODE_HEADERS = {
     "Content-Type": "application/json",
     "User-Agent":   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -307,7 +307,7 @@ export const fetchCodeforcesStats = async (handle) => {
                     if (!solvedSet.has(key)) {
                         solvedSet.add(key);
 
-                        // Count topics only for unique solved problems
+                        // COUNT TOPICS (unique solved only)
                         (sub.problem.tags || []).forEach(tag => {
                             topicMap[tag] = (topicMap[tag] || 0) + 1;
                         });

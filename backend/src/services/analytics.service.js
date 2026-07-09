@@ -15,20 +15,8 @@ import {
     STANDARD_TOPICS,
 } from "../utils/analyticsHelpers.js";
 
-// ─────────────────────────────────────────────
-// SYSTEM 2 — ANALYTICS ENGINE
-// Pure computation — no AI involved here.
-// Aggregates data already sitting in CodingPlatformStats,
-// ContestHistory, TopicStats, and CPDailyActivity tables.
-// ─────────────────────────────────────────────
+// INTERNAL HELPERS
 
-// ───── INTERNAL HELPERS ─────
-
-/**
- * Identifies weak and strong topics by relative problem count.
- * Topics in the bottom 30% of solve count are "weak",
- * topics in the top 30% are "strong".
- */
 const computeWeakStrongTopics = (topicStats) => {
     if (topicStats.length === 0) {
         return { weakTopics: [], strongTopics: [] };
@@ -45,9 +33,6 @@ const computeWeakStrongTopics = (topicStats) => {
     return { weakTopics, strongTopics };
 };
 
-/**
- * Computes average contest rank across all contests.
- */
 const computeAverageRank = (contestHistory) => {
     if (contestHistory.length === 0) return null;
 
@@ -58,11 +43,7 @@ const computeAverageRank = (contestHistory) => {
     return Math.round(sum / ranksWithValue.length);
 };
 
-// ─────────────────────────────────────────────
-// EXISTING — computeUserAnalytics
-// Preserved from original, used by AI Coach & Recommendations
-// ─────────────────────────────────────────────
-
+// COMPUTE USER ANALYTICS
 export const computeUserAnalytics = async (userId) => {
     const [platformStats, contestHistory, topicStats] = await Promise.all([
         findPlatformStats(userId),
@@ -70,7 +51,6 @@ export const computeUserAnalytics = async (userId) => {
         findTopicStats(userId),
     ]);
 
-    // Per-platform breakdown
     const perPlatform = platformStats.map(stat => {
         const platformContests = contestHistory.filter(c => c.platform === stat.platform);
 
@@ -91,7 +71,6 @@ export const computeUserAnalytics = async (userId) => {
         };
     });
 
-    // Aggregate totals across all platforms
     const totalSolvedAcrossPlatforms = platformStats.reduce(
         (sum, s) => sum + (s.totalSolved || 0), 0
     );
@@ -100,7 +79,6 @@ export const computeUserAnalytics = async (userId) => {
         (sum, s) => sum + (s.contestsCount || 0), 0
     );
 
-    // Topic analysis — combined across all platforms
     const topicMap = {};
     topicStats.forEach(t => {
         if (!topicMap[t.topic]) topicMap[t.topic] = 0;
@@ -125,11 +103,7 @@ export const computeUserAnalytics = async (userId) => {
     };
 };
 
-// ─────────────────────────────────────────────
-// NEW — Rating Analytics
-// GET /analytics/rating
-// ─────────────────────────────────────────────
-
+// GET RATING ANALYTICS
 export const getRatingAnalytics = async (userId) => {
     const [platformStats, contestHistory] = await Promise.all([
         findPlatformStats(userId),
@@ -138,20 +112,18 @@ export const getRatingAnalytics = async (userId) => {
 
     const platforms = platformStats.map(stat => {
         const platformContests = contestHistory.filter(c => c.platform === stat.platform);
-        const ratings = platformContests.map(c => c.rating).filter(Boolean);
         const ratingChanges = platformContests.map(c => c.ratingChange).filter(r => r !== null);
 
         const gains  = ratingChanges.filter(r => r > 0);
         const losses = ratingChanges.filter(r => r < 0);
 
         return {
-            platform:        stat.platform,
-            currentRating:   stat.rating,
-            peakRating:      stat.maxRating,
-            monthlyGrowth:   computeMonthlyGrowth(platformContests),
-            averageGain:     gains.length > 0 ? Math.round(gains.reduce((a, b) => a + b, 0) / gains.length) : null,
-            averageLoss:     losses.length > 0 ? Math.round(losses.reduce((a, b) => a + b, 0) / losses.length) : null,
-            // Chart data — sorted by date for line graph
+            platform:      stat.platform,
+            currentRating: stat.rating,
+            peakRating:    stat.maxRating,
+            monthlyGrowth: computeMonthlyGrowth(platformContests),
+            averageGain:   gains.length > 0 ? Math.round(gains.reduce((a, b) => a + b, 0) / gains.length) : null,
+            averageLoss:   losses.length > 0 ? Math.round(losses.reduce((a, b) => a + b, 0) / losses.length) : null,
             ratingHistory: platformContests.map(c => ({
                 date:         c.contestDate,
                 rating:       c.rating,
@@ -164,11 +136,7 @@ export const getRatingAnalytics = async (userId) => {
     return { platforms };
 };
 
-// ─────────────────────────────────────────────
-// NEW — Contest Analytics
-// GET /analytics/contests
-// ─────────────────────────────────────────────
-
+// GET CONTEST ANALYTICS
 export const getContestAnalytics = async (userId) => {
     const [platformStats, contestHistory] = await Promise.all([
         findPlatformStats(userId),
@@ -187,13 +155,12 @@ export const getContestAnalytics = async (userId) => {
         ratingChange: c.ratingChange,
     }));
 
-    // Group by month for participation chart
     const byMonth = groupByMonth(contestHistory);
     const monthlyParticipation = Object.entries(byMonth)
         .map(([month, contests]) => ({
             month,
-            count: contests.length,
-            avgRating: safeAverage(contests.map(c => c.rating)),
+            count:           contests.length,
+            avgRating:       safeAverage(contests.map(c => c.rating)),
             avgRatingChange: safeAverage(contests.map(c => c.ratingChange)),
         }))
         .sort((a, b) => a.month.localeCompare(b.month));
@@ -208,15 +175,10 @@ export const getContestAnalytics = async (userId) => {
     };
 };
 
-// ─────────────────────────────────────────────
-// NEW — Topic Analytics
-// GET /analytics/topics
-// ─────────────────────────────────────────────
-
+// GET TOPIC ANALYTICS
 export const getTopicAnalytics = async (userId) => {
     const topicStats = await findTopicStats(userId);
 
-    // Merge across platforms
     const topicMap = {};
     topicStats.forEach(t => {
         if (!topicMap[t.topic]) {
@@ -226,25 +188,21 @@ export const getTopicAnalytics = async (userId) => {
         topicMap[t.topic].platforms.push(t.platform);
     });
 
-    const maxSolved = Math.max(1, ...Object.values(topicMap).map(v => v.solved));
-
-    // Build full topic analysis (including standard topics with zero data)
     const allTopics = new Set([
         ...STANDARD_TOPICS,
         ...Object.keys(topicMap),
     ]);
 
     const topics = [...allTopics].map(topic => {
-        const data      = topicMap[topic] || { solved: 0, platforms: [] };
-        const attempted = data.solved; // best approximation — APIs don't expose "attempted" separately
-        const solved    = data.solved;
-        const accuracy  = attempted > 0 ? Math.round((solved / attempted) * 100) : null;
+        const data     = topicMap[topic] || { solved: 0, platforms: [] };
+        const solved   = data.solved;
+        const accuracy = solved > 0 ? Math.round((solved / solved) * 100) : null;
 
-        const { weaknessScore, strengthScore } = computeTopicScores(solved, attempted || 1);
+        const { weaknessScore, strengthScore } = computeTopicScores(solved, solved || 1);
 
         return {
             topic,
-            attempted,
+            attempted: solved,
             solved,
             accuracy,
             weaknessScore,
@@ -260,17 +218,9 @@ export const getTopicAnalytics = async (userId) => {
     return { topics, weakTopics, strongTopics };
 };
 
-// ─────────────────────────────────────────────
-// NEW — Difficulty Analytics
-// GET /analytics/difficulty
-// ─────────────────────────────────────────────
-
+// GET DIFFICULTY ANALYTICS
 export const getDifficultyAnalytics = async (userId) => {
     const platformStats = await findPlatformStats(userId);
-
-    // From LeetCode we have easy/medium/hard breakdown
-    // From Codeforces we only have totalSolved
-    // We'll aggregate what's available
 
     let totalEasy   = 0;
     let totalMedium = 0;
@@ -284,14 +234,12 @@ export const getDifficultyAnalytics = async (userId) => {
         totalSolved += stat.totalSolved  || 0;
     });
 
-    // Basic difficulty breakdown from LeetCode-style data
     const difficultyBreakdown = [
         { difficulty: "Easy",   solved: totalEasy,   successRate: totalSolved > 0 ? Math.round((totalEasy / totalSolved) * 100) : null },
         { difficulty: "Medium", solved: totalMedium, successRate: totalSolved > 0 ? Math.round((totalMedium / totalSolved) * 100) : null },
         { difficulty: "Hard",   solved: totalHard,   successRate: totalSolved > 0 ? Math.round((totalHard / totalSolved) * 100) : null },
     ];
 
-    // Rating-bracket breakdown from contest history
     const contestHistory = await findContestHistory(userId);
     const bracketMap = {};
     DIFFICULTY_BRACKETS.forEach(b => {
@@ -299,8 +247,6 @@ export const getDifficultyAnalytics = async (userId) => {
     });
     bracketMap["2000+"] = { bracket: "2000+", attempted: 0, solved: 0 };
 
-    // Estimate from contest ratings — each contest entered is an "attempt"
-    // at that difficulty level
     contestHistory.forEach(c => {
         if (c.rating === null) return;
         const bracket = c.rating >= 2000
@@ -327,11 +273,7 @@ export const getDifficultyAnalytics = async (userId) => {
     };
 };
 
-// ─────────────────────────────────────────────
-// NEW — Dashboard Summary
-// GET /analytics/dashboard
-// ─────────────────────────────────────────────
-
+// GET DASHBOARD SUMMARY
 export const getDashboardSummary = async (userId) => {
     const [platformStats, contestHistory, topicStats] = await Promise.all([
         findPlatformStats(userId),
@@ -339,26 +281,24 @@ export const getDashboardSummary = async (userId) => {
         findTopicStats(userId),
     ]);
 
-    const totalSolved = platformStats.reduce((sum, s) => sum + (s.totalSolved || 0), 0);
+    const totalSolved   = platformStats.reduce((sum, s) => sum + (s.totalSolved || 0), 0);
     const totalContests = platformStats.reduce((sum, s) => sum + (s.contestsCount || 0), 0);
 
-    const ratings = platformStats.map(s => s.rating).filter(Boolean);
+    const ratings     = platformStats.map(s => s.rating).filter(Boolean);
     const peakRatings = platformStats.map(s => s.maxRating).filter(Boolean);
     const currentRating = ratings.length > 0 ? Math.max(...ratings) : null;
-    const peakRating = peakRatings.length > 0 ? Math.max(...peakRatings) : null;
+    const peakRating    = peakRatings.length > 0 ? Math.max(...peakRatings) : null;
 
     const currentStreak = platformStats.reduce(
         (max, s) => Math.max(max, s.currentStreak || 0), 0
     );
 
-    // Monthly growth — best among all platforms
     const growths = platformStats.map(stat => {
         const pc = contestHistory.filter(c => c.platform === stat.platform);
         return computeMonthlyGrowth(pc);
     }).filter(g => g !== null);
     const monthlyGrowth = growths.length > 0 ? Math.max(...growths) : null;
 
-    // Topic analysis
     const topicMap = {};
     topicStats.forEach(t => {
         if (!topicMap[t.topic]) topicMap[t.topic] = 0;
@@ -394,11 +334,7 @@ export const getDashboardSummary = async (userId) => {
     };
 };
 
-// ─────────────────────────────────────────────
-// NEW — Progress Analytics
-// GET /analytics/progress
-// ─────────────────────────────────────────────
-
+// GET PROGRESS ANALYTICS
 export const getProgressAnalytics = async (userId) => {
     const [platformStats, contestHistory, dailyActivity] = await Promise.all([
         findPlatformStats(userId),
@@ -406,15 +342,13 @@ export const getProgressAnalytics = async (userId) => {
         findDailyActivity(userId),
     ]);
 
-    // Streak data
     const streaks = platformStats.map(s => ({
-        platform:      s.platform,
-        currentStreak: s.currentStreak || 0,
-        maxStreak:     s.maxStreak || 0,
+        platform:       s.platform,
+        currentStreak:  s.currentStreak || 0,
+        maxStreak:      s.maxStreak || 0,
         totalActiveDays: s.totalActiveDays || 0,
     }));
 
-    // Activity heatmap data (last 365 days)
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
@@ -426,21 +360,19 @@ export const getProgressAnalytics = async (userId) => {
             submissions: d.submissions,
         }));
 
-    // Monthly solving trajectory
     const byMonth = groupByMonth(contestHistory);
     const ratingTrajectory = Object.entries(byMonth)
         .map(([month, contests]) => {
             const sorted = [...contests].sort((a, b) => new Date(a.contestDate) - new Date(b.contestDate));
             return {
                 month,
-                startRating: sorted[0]?.rating || null,
-                endRating:   sorted[sorted.length - 1]?.rating || null,
+                startRating:    sorted[0]?.rating || null,
+                endRating:      sorted[sorted.length - 1]?.rating || null,
                 contestsPlayed: contests.length,
             };
         })
         .sort((a, b) => a.month.localeCompare(b.month));
 
-    // Consistency score — how many of the last 30 days had submissions
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const last30 = dailyActivity.filter(d => new Date(d.date) >= thirtyDaysAgo);

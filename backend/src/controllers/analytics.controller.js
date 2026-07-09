@@ -10,10 +10,6 @@ import {
     getProgressAnalytics,
 } from "../services/analytics.service.js";
 
-// ─────────────────────────────────────────────
-// ANALYTICS CONTROLLER  (System 2)
-// Pure computed data — fast, no AI, can be called often
-// ─────────────────────────────────────────────
 
 // GET /analytics/dashboard
 export const getDashboard = asyncHandler(async (req, res) => {

@@ -270,3 +270,60 @@ export const refreshUpcomingContests = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, { count }, "Upcoming contests refreshed"));
 });
+
+// GET GITHUB DAILY ACTIVITY  (for contribution heatmap)
+export const getGithubDailyActivity = asyncHandler(async (req, res) => {
+    const { days } = req.query;
+    const daysBack = Math.min(parseInt(days) || 365, 365);
+
+    const since = new Date();
+    since.setDate(since.getDate() - daysBack);
+
+    const activity = await prisma.gitHubDailyActivity.findMany({
+        where: {
+            userId: req.user.id,
+            date: { gte: since },
+        },
+        orderBy: { date: "asc" },
+        select: {
+            date:          true,
+            contributions: true,
+        },
+    });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, activity, "GitHub daily activity fetched successfully"));
+});
+
+// GET CP DAILY ACTIVITY  (for CP submission heatmap)
+export const getCpDailyActivity = asyncHandler(async (req, res) => {
+    const { platform, days } = req.query;
+    const daysBack = Math.min(parseInt(days) || 365, 365);
+
+    const since = new Date();
+    since.setDate(since.getDate() - daysBack);
+
+    const where = {
+        userId: req.user.id,
+        date:   { gte: since },
+    };
+
+    if (platform) {
+        where.platform = platform.toUpperCase().trim();
+    }
+
+    const activity = await prisma.cPDailyActivity.findMany({
+        where,
+        orderBy: { date: "asc" },
+        select: {
+            platform:    true,
+            date:        true,
+            submissions: true,
+        },
+    });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, activity, "CP daily activity fetched successfully"));
+});

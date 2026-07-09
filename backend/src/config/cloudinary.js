@@ -7,14 +7,7 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-/**
- * Uploads a file from local disk (where multer saved it) to Cloudinary,
- * then removes the local temp file regardless of outcome.
- *
- * @param {string} localFilePath - path to the file multer wrote to disk
- * @param {object} [options] - extra options merged into the Cloudinary upload call
- * @returns {Promise<string|null>} the secure_url of the uploaded asset, or null if no path given
- */
+// UPLOAD TO CLOUDINARY
 const uploadOnCloudinary = async (localFilePath, options = {}) => {
     if (!localFilePath) return null;
 
@@ -26,7 +19,6 @@ const uploadOnCloudinary = async (localFilePath, options = {}) => {
         });
 
         fs.unlinkSync(localFilePath);
-
         return response.secure_url;
     } catch (error) {
         if (fs.existsSync(localFilePath)) {
@@ -36,13 +28,7 @@ const uploadOnCloudinary = async (localFilePath, options = {}) => {
     }
 };
 
-/**
- * Deletes an asset from Cloudinary given its public_id.
- * Useful when replacing an avatar — remove the old image before/after setting the new one.
- *
- * @param {string} publicId
- * @param {object} [options]
- */
+// DELETE FROM CLOUDINARY
 const deleteFromCloudinary = async (publicId, options = {}) => {
     if (!publicId) return null;
 

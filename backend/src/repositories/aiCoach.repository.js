@@ -1,14 +1,6 @@
 import prisma from "../config/prisma.ts";
 
-// ─────────────────────────────────────────────
-// AI COACH REPOSITORY
-// Data-access layer for AI coaching insights.
-// ─────────────────────────────────────────────
-
-/**
- * Finds the most recent cached insight of a given type for a user,
- * within the specified time window.
- */
+// FIND RECENT INSIGHT
 export const findRecentInsight = (userId, insightType, hoursAgo = 24) => {
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - hoursAgo);
@@ -23,16 +15,12 @@ export const findRecentInsight = (userId, insightType, hoursAgo = 24) => {
     });
 };
 
-/**
- * Creates a new coaching insight record.
- */
+// CREATE INSIGHT
 export const createInsight = (data) => {
     return prisma.aICoachInsight.create({ data });
 };
 
-/**
- * Lists all insights for a user, newest first.
- */
+// FIND INSIGHT HISTORY
 export const findInsightHistory = (userId, insightType = null, limit = 10) => {
     const where = { userId };
     if (insightType) where.insightType = insightType;

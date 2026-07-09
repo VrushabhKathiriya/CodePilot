@@ -1,32 +1,29 @@
+import ApiResponse from "../utils/ApiResponse.js";
+import asyncHandler from "../utils/asyncHandler.js";
+
 import {
     getPersonalizedRecommendations,
     getTopicRecommendations,
     getDailyRecommendations,
 } from "../services/recommendation.service.js";
 
-export const getRecommendations = async (req, res, next) => {
-    try {
-        const data = await getPersonalizedRecommendations(req.user.id);
-        return res.status(200).json({ success: true, data });
-    } catch (error) {
-        next(error);
-    }
-};
+// GET /recommendations
+export const getRecommendations = asyncHandler(async (req, res) => {
+    const data = await getPersonalizedRecommendations(req.user.id);
 
-export const getTopicReco = async (req, res, next) => {
-    try {
-        const data = await getTopicRecommendations(req.user.id);
-        return res.status(200).json({ success: true, data });
-    } catch (error) {
-        next(error);
-    }
-};
+    return res.status(200).json(new ApiResponse(200, data, "Personalized recommendations fetched successfully"));
+});
 
-export const getDailyReco = async (req, res, next) => {
-    try {
-        const data = await getDailyRecommendations(req.user.id);
-        return res.status(200).json({ success: true, data });
-    } catch (error) {
-        next(error);
-    }
-};
+// GET /recommendations/topics
+export const getTopicReco = asyncHandler(async (req, res) => {
+    const data = await getTopicRecommendations(req.user.id);
+
+    return res.status(200).json(new ApiResponse(200, data, "Topic recommendations fetched successfully"));
+});
+
+// GET /recommendations/daily
+export const getDailyReco = asyncHandler(async (req, res) => {
+    const data = await getDailyRecommendations(req.user.id);
+
+    return res.status(200).json(new ApiResponse(200, data, "Daily recommendations fetched successfully"));
+});

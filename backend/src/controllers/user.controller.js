@@ -101,10 +101,10 @@ export const registerUser = asyncHandler(async (req, res) => {
 
     // SEND EMAIL
     try {
-        await sendOtpEmail(email, otp);
+        await sendOtpEmail(email, otp, "REGISTER");
     } catch (error) {
         await prisma.user.delete({ where: { id: user.id } });
-        throw new ApiError(500, "Failed to send OTP");
+        throw new ApiError(500, "Failed to send verification email. Please try again.");
     }
 
     return res
@@ -602,10 +602,13 @@ export const upsertUserProfile = asyncHandler(async (req, res) => {
 
     const merged = { ...existing, ...data };
 
+    // Profile is considered complete when the user has filled in the basics
+    // AND connected at least one coding platform
     data.profileCompleted = !!(
         merged.avatarUrl &&
         merged.bio &&
-        merged.country
+        merged.country &&
+        (merged.leetcodeUsername || merged.codeforcesHandle || merged.githubUsername)
     );
 
     const profile = await prisma.userProfile.upsert({
@@ -764,7 +767,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         }
     });
 
-    await sendOtpEmail(email, otp);
+    await sendOtpEmail(email, otp, "PASSWORD_RESET");
 
     return res
         .status(200)
@@ -806,6 +809,22 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
     if (otpRecord.expiresAt < new Date()) {
         throw new ApiError(400, "OTP expired");
+    }
+
+    // Validate new password strength
+    if (
+        !validator.isStrongPassword(newPassword, {
+            minLength: 8,
+            minLowercase: 1,
+            minUppercase: 1,
+            minNumbers: 1,
+            minSymbols: 1,
+        })
+    ) {
+        throw new ApiError(
+            400,
+            "Password must contain uppercase, lowercase, number and special character"
+        );
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -873,7 +892,7 @@ export const changeEmail = asyncHandler(async (req, res) => {
         }
     });
 
-    await sendOtpEmail(newEmail, otp);
+    await sendOtpEmail(newEmail, otp, "EMAIL_CHANGE");
 
     return res
         .status(200)
@@ -1396,4 +1415,67 @@ export const reorderProjects = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, null, "Projects reordered successfully"));
+});
+
+// RESEND OTP
+export const resendOtp = asyncHandler(async (req, res) => {
+    let { email, purpose } = req.body;
+
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    email = email.toLowerCase().trim();
+    purpose = purpose || "REGISTER";
+
+    if (!["REGISTER", "PASSWORD_RESET"].includes(purpose)) {
+        throw new ApiError(400, "Invalid OTP purpose");
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+        // Return success to avoid user enumeration
+        return res
+            .status(200)
+            .json(new ApiResponse(200, null, "If this email exists, a new OTP has been sent"));
+    }
+
+    if (purpose === "REGISTER" && user.isVerified) {
+        throw new ApiError(400, "Account already verified");
+    }
+
+    if (purpose === "PASSWORD_RESET" && user.authProvider !== "local") {
+        return res
+            .status(200)
+            .json(new ApiResponse(200, null, "If this email exists, a new OTP has been sent"));
+    }
+
+    // Invalidate any existing unused OTPs for this purpose
+    await prisma.oTP.deleteMany({
+        where: { userId: user.id, purpose, isUsed: false },
+    });
+
+    const otp = generateOtp();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.oTP.create({
+        data: {
+            userId:    user.id,
+            email,
+            otpCode:   otp,
+            purpose,
+            expiresAt: otpExpiry,
+        },
+    });
+
+    try {
+        await sendOtpEmail(email, otp, purpose);
+    } catch {
+        throw new ApiError(500, "Failed to send OTP email. Please try again.");
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "If this email exists, a new OTP has been sent"));
 });

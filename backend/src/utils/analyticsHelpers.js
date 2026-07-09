@@ -1,14 +1,4 @@
-// ─────────────────────────────────────────────
-// ANALYTICS HELPERS
-// Reusable pure-computation helpers used across
-// analytics, coaching, and recommendation services.
-// ─────────────────────────────────────────────
-
-/**
- * Computes current and max streak from an array of date strings (sorted asc).
- * @param {string[]} sortedDates — ISO date strings like "2024-01-15"
- * @returns {{ currentStreak: number, maxStreak: number }}
- */
+// COMPUTE STREAKS
 export const computeStreaks = (sortedDates) => {
     if (!sortedDates || sortedDates.length === 0) {
         return { currentStreak: 0, maxStreak: 0 };
@@ -49,12 +39,7 @@ export const computeStreaks = (sortedDates) => {
     return { currentStreak, maxStreak };
 };
 
-/**
- * Computes monthly rating growth from contest history.
- * Compares rating at start vs end of last 30 days.
- * @param {Array} contestHistory — [{contestDate, rating, ...}]
- * @returns {number|null}
- */
+// COMPUTE MONTHLY GROWTH
 export const computeMonthlyGrowth = (contestHistory) => {
     if (!contestHistory || contestHistory.length === 0) return null;
 
@@ -68,26 +53,14 @@ export const computeMonthlyGrowth = (contestHistory) => {
     return (sorted[sorted.length - 1].rating || 0) - (sorted[0].rating || 0);
 };
 
-/**
- * Computes average from an array of numbers, ignoring nulls.
- * @param {(number|null)[]} values
- * @returns {number|null}
- */
+// SAFE AVERAGE
 export const safeAverage = (values) => {
     const valid = values.filter(v => v !== null && v !== undefined);
     if (valid.length === 0) return null;
     return Math.round(valid.reduce((sum, v) => sum + v, 0) / valid.length);
 };
 
-/**
- * Generates an overall performance score (0–100).
- *
- * Factors:
- *   - Problems solved (max 40 pts)
- *   - Contest participation (max 20 pts)
- *   - Rating (max 25 pts)
- *   - Topic diversity (max 15 pts)
- */
+// COMPUTE PERFORMANCE SCORE
 export const computePerformanceScore = (totalSolved, totalContests, maxRating, topicCount) => {
     const solvedScore  = Math.min(40, (totalSolved || 0) / 10 * 4);
     const contestScore = Math.min(20, (totalContests || 0) * 2);
@@ -97,21 +70,14 @@ export const computePerformanceScore = (totalSolved, totalContests, maxRating, t
     return Math.round(solvedScore + contestScore + ratingScore + topicScore);
 };
 
-/**
- * Computes weakness and strength scores for a topic.
- *
- * Weakness = problems attempted with low success ratio relative to other topics.
- * Strength = problems solved with high success ratio relative to other topics.
- *
- * Score 0–100.
- */
+// COMPUTE TOPIC SCORES
 export const computeTopicScores = (solved, attempted) => {
     if (!attempted || attempted === 0) {
         return { weaknessScore: 50, strengthScore: 0 };
     }
 
     const accuracy = solved / attempted;
-    const volume   = Math.min(1, attempted / 50); // normalize volume (50 problems = full weight)
+    const volume   = Math.min(1, attempted / 50);
 
     const strengthScore = Math.round(accuracy * 60 + volume * 40);
     const weaknessScore = Math.round((1 - accuracy) * 60 + (1 - volume) * 40);
@@ -119,12 +85,7 @@ export const computeTopicScores = (solved, attempted) => {
     return { weaknessScore, strengthScore };
 };
 
-/**
- * Groups an array of records by YYYY-MM key.
- * @param {Array} records — objects with a `date` or `contestDate` field
- * @param {string} dateField — the name of the date field
- * @returns {Object} — { "2024-01": [...records], "2024-02": [...records], ... }
- */
+// GROUP BY MONTH
 export const groupByMonth = (records, dateField = "contestDate") => {
     const groups = {};
     for (const record of records) {
@@ -136,24 +97,14 @@ export const groupByMonth = (records, dateField = "contestDate") => {
     return groups;
 };
 
-/**
- * Maps rating to a difficulty bracket string.
- * @param {number} rating
- * @returns {string}
- */
+// RATING TO BRACKET
 export const ratingToBracket = (rating) => {
     if (rating >= 2000) return "2000+";
     return String(Math.floor(rating / 200) * 200);
 };
 
-/**
- * The standard difficulty brackets for analytics.
- */
 export const DIFFICULTY_BRACKETS = [800, 1000, 1200, 1400, 1600, 1800, 2000];
 
-/**
- * The standard topics for topic analytics.
- */
 export const STANDARD_TOPICS = [
     "Dynamic Programming",
     "Graphs",

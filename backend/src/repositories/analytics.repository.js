@@ -1,14 +1,11 @@
 import prisma from "../config/prisma.ts";
 
-// ─────────────────────────────────────────────
-// ANALYTICS REPOSITORY
-// Thin data-access layer for all analytics queries.
-// ─────────────────────────────────────────────
-
+// FIND PLATFORM STATS
 export const findPlatformStats = (userId) => {
     return prisma.codingPlatformStats.findMany({ where: { userId } });
 };
 
+// FIND CONTEST HISTORY
 export const findContestHistory = (userId, platform = null) => {
     const where = { userId };
     if (platform) where.platform = platform;
@@ -18,6 +15,7 @@ export const findContestHistory = (userId, platform = null) => {
     });
 };
 
+// FIND TOPIC STATS
 export const findTopicStats = (userId, platform = null) => {
     const where = { userId };
     if (platform) where.platform = platform;
@@ -27,6 +25,7 @@ export const findTopicStats = (userId, platform = null) => {
     });
 };
 
+// FIND CP DAILY ACTIVITY
 export const findDailyActivity = (userId, platform = null) => {
     const where = { userId };
     if (platform) where.platform = platform;
@@ -36,10 +35,12 @@ export const findDailyActivity = (userId, platform = null) => {
     });
 };
 
+// FIND GITHUB STATS
 export const findGithubStats = (userId) => {
     return prisma.gitHubStats.findUnique({ where: { userId } });
 };
 
+// FIND GITHUB DAILY ACTIVITY
 export const findGithubDailyActivity = (userId) => {
     return prisma.gitHubDailyActivity.findMany({
         where: { userId },

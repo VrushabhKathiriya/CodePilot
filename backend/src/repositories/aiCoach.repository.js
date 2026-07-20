@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.ts";
+import prisma from "../config/prisma.js";
 
 // FIND RECENT INSIGHT
 export const findRecentInsight = (userId, insightType, hoursAgo = 24) => {

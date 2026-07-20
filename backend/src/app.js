@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import errorHandler from "./middlewares/error.middleware.js";
 import cookieParser from "cookie-parser";
 import userRoutes from "./routes/user.routes.js";
@@ -17,7 +18,7 @@ const app = express();
 // CORS
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim())
-    : ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"];
+    : [process.env.CLIENT_URL || "http://localhost:5173", "http://localhost:3000"];
 
 app.use(
     cors({
@@ -40,13 +41,7 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
 // SECURITY HEADERS
-app.use((req, res, next) => {
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "DENY");
-    res.setHeader("X-XSS-Protection", "1; mode=block");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    next();
-});
+app.use(helmet());
 
 // CRON — refresh upcoming contests every 6 hours
 cron.schedule("0 */6 * * *", async () => {

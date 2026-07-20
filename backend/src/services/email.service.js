@@ -77,20 +77,28 @@ const buildOtpEmailHtml = (otp, purpose) => {
 </html>`;
 };
 
-// SEND OTP EMAIL
 export const sendOtpEmail = async (email, otp, purpose = "REGISTER") => {
-    const mailer = await createTransporter();
+    try {
+        const mailer = await createTransporter();
 
-    const subjectMap = {
-        REGISTER:       "CodePilot — Verify Your Email",
-        PASSWORD_RESET: "CodePilot — Reset Your Password",
-        EMAIL_CHANGE:   "CodePilot — Confirm Email Change",
-    };
+        const subjectMap = {
+            REGISTER:       "CodePilot — Verify Your Email",
+            PASSWORD_RESET: "CodePilot — Reset Your Password",
+            EMAIL_CHANGE:   "CodePilot — Confirm Email Change",
+        };
 
-    await mailer.sendMail({
-        from:    `"CodePilot" <${process.env.MAIL_FROM}>`,
-        to:      email,
-        subject: subjectMap[purpose] || "CodePilot — OTP Code",
-        html:    buildOtpEmailHtml(otp, purpose),
-    });
+
+        await mailer.sendMail({
+            from:    `"CodePilot" <${process.env.MAIL_FROM}>`,
+            to:      email,
+            subject: subjectMap[purpose] || "CodePilot — OTP Code",
+            html:    buildOtpEmailHtml(otp, purpose),
+        });
+    } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+            console.log(`\n[DEV MODE] SMTP failed. OTP for ${email} is: ${otp}\n`);
+            return; // Gracefully continue in dev
+        }
+        throw error;
+    }
 };

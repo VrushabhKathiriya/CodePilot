@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.ts";
+import prisma from "../config/prisma.js";
 
 const DEFAULT_WEAK_TOPICS = ["dp", "graphs", "binary search", "greedy", "trees"];
 const TOPIC_PROBLEM_COUNTS = [3, 2, 2, 1, 1];

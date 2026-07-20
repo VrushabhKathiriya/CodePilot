@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import prisma from "../config/prisma.ts";
+import prisma from "../config/prisma.js";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 

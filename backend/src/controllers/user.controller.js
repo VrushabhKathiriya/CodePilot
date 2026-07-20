@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import validator from "validator";
 import jwt from "jsonwebtoken";
-import prisma from "../config/prisma.ts";
+import prisma from "../config/prisma.js";
 
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -230,7 +230,17 @@ export const loginUser = asyncHandler(async (req, res) => {
         data: { lastLogin: new Date() },
     });
 
-    return res.status(200).json(
+    const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+    };
+
+    return res
+        .status(200)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
+        .json(
         new ApiResponse(
             200,
             {

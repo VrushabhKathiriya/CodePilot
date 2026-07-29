@@ -48,21 +48,20 @@ const item    = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, trans
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const { fetchDashboard, dashboard, loading, errors } = useAnalytics();
+  const { fetchDashboard, dashboard, fetchRating, rating, fetchTopics, topics, loading, errors } = useAnalytics();
   const [contests, setContests] = useState([]);
   const [aiSummary, setAiSummary] = useState(null);
   const [cpActivity, setCpActivity] = useState({});
-  const [ratingData, setRatingData] = useState(null);
-  const [topicData, setTopicData] = useState(null);
   const [contestsLoading, setContestsLoading] = useState(true);
 
   useEffect(() => {
     document.title = 'Dashboard — CodePilot';
     fetchDashboard();
+    fetchRating();
+    fetchTopics();
     loadContests();
     loadAISummary();
     loadActivity();
-    loadRating();
   }, []);
 
   async function loadContests() {
@@ -97,15 +96,6 @@ export default function DashboardPage() {
         Object.assign(map, raw);
       }
       setCpActivity(map);
-    } catch (_) {}
-  }
-
-  async function loadRating() {
-    try {
-      const res = await analyticsApi.getRating();
-      const d = res.data?.data;
-      if (d?.history) setRatingData(d.history);
-      if (d?.topics) setTopicData(d.topics);
     } catch (_) {}
   }
 
@@ -174,7 +164,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <RatingLineChart
-              data={ratingData || MOCK_RATING_DATA}
+              data={rating?.history || MOCK_RATING_DATA}
               lines={RATING_LINES}
               height={240}
             />
@@ -186,7 +176,7 @@ export default function DashboardPage() {
           <Card style={{ height: '100%' }}>
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 4 }}>Topics</p>
             <h6 style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-lg)', marginBottom: 'var(--space-4)' }}>Topic Mastery</h6>
-            <TopicRadarChart data={topicData || MOCK_RADAR} height={260} />
+            <TopicRadarChart data={topics?.topics || MOCK_RADAR} height={260} />
           </Card>
         </motion.div>
 

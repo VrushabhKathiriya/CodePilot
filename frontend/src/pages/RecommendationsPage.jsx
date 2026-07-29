@@ -11,7 +11,7 @@ import { recommendationApi } from '../api/recommendation.api';
 import { useToast } from '../hooks/useToast';
 
 function ProblemCard({ problem }) {
-  const { platform, title, difficulty, url, topic, tags = [] } = problem || {};
+  const { platform, title, difficulty, url, topic, reason, tags = [] } = problem || {};
   const diffColor = difficulty < 1200 ? 'var(--success)' : difficulty < 1600 ? '#F59E0B' : difficulty < 2000 ? 'var(--accent)' : '#AA0000';
 
   return (
@@ -30,6 +30,11 @@ function ProblemCard({ problem }) {
         <PlatformBadge platform={platform} size="sm" />
         {topic && <Badge variant="default">{topic}</Badge>}
       </div>
+      {reason && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.4, margin: '2px 0' }}>
+          💡 <span style={{ fontStyle: 'italic' }}>{reason}</span>
+        </p>
+      )}
       {url && (
         <a href={url} target="_blank" rel="noopener noreferrer"
           style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none', marginTop: 4 }}>

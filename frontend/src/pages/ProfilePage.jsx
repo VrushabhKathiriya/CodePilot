@@ -37,8 +37,18 @@ export default function ProfilePage() {
   async function saveInfo() {
     setSaving(true);
     try {
-      const res = await userApi.updateInfo(info);
-      setUser({ ...user, ...res.data?.data });
+      const [resInfo, resProfile] = await Promise.all([
+        userApi.updateInfo({ fullName: info.name }),
+        userApi.upsertProfile({ bio: info.bio, country: info.location }),
+      ]);
+      setUser({
+        ...user,
+        ...resInfo.data?.data,
+        profile: {
+          ...user?.profile,
+          ...resProfile.data?.data,
+        },
+      });
       toast.success('Profile updated!');
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to save');

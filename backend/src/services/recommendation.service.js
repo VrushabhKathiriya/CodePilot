@@ -100,6 +100,7 @@ const formatQuestion = (problem) => ({
     title: problem.title,
     difficulty: problem.difficulty,
     platform: problem.platform,
+    topic: problem.topic,
     matchedTopic: problem.topic,
     url: problem.url,
 });

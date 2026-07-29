@@ -378,9 +378,38 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Unauthorized request");
     }
 
+    const fullUser = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: {
+            id:           true,
+            fullName:     true,
+            username:     true,
+            email:        true,
+            authProvider: true,
+            isVerified:   true,
+            isActive:     true,
+            lastLogin:    true,
+            createdAt:    true,
+            updatedAt:    true,
+            profile:      true,
+            educations:   true,
+            experiences:  true,
+            achievements: true,
+            projects:     true,
+            socialLinks:  true,
+            codingPlatformStats: true,
+        }
+    });
+
+    const responseData = {
+        ...fullUser,
+        education: fullUser.educations,
+        experience: fullUser.experiences,
+    };
+
     return res
         .status(200)
-        .json(new ApiResponse(200, req.user, "User fetched successfully"));
+        .json(new ApiResponse(200, responseData, "User fetched successfully"));
 });
 
 // GET USER PROFILE
@@ -1298,14 +1327,21 @@ export const deleteAchievement = asyncHandler(async (req, res) => {
 
 // ADD PROJECT
 export const addProject = asyncHandler(async (req, res) => {
-    const { title, description, techStack, githubUrl, liveUrl, thumbnailUrl } = req.body;
+    const { title, description, techStack, githubUrl, liveUrl, url, thumbnailUrl } = req.body;
 
-    if (!title || !description || !techStack) {
-        throw new ApiError(400, "Title, description and techStack are required");
+    if (!title || !description) {
+        throw new ApiError(400, "Title and description are required");
     }
 
-    if (!Array.isArray(techStack)) {
-        throw new ApiError(400, "techStack must be an array of strings");
+    let parsedTechStack = [];
+    if (techStack !== undefined && techStack !== null) {
+        if (Array.isArray(techStack)) {
+            parsedTechStack = techStack;
+        } else if (typeof techStack === "string") {
+            parsedTechStack = techStack.split(",").map(t => t.trim()).filter(Boolean);
+        } else {
+            throw new ApiError(400, "techStack must be an array of strings or a comma-separated string");
+        }
     }
 
     const existingCount = await prisma.project.count({
@@ -1317,9 +1353,9 @@ export const addProject = asyncHandler(async (req, res) => {
             userId:       req.user.id,
             title:        title.trim(),
             description:  description.trim(),
-            techStack,
+            techStack:    parsedTechStack,
             githubUrl:    githubUrl    || null,
-            liveUrl:      liveUrl      || null,
+            liveUrl:      liveUrl      || url || null,
             thumbnailUrl: thumbnailUrl || null,
             displayOrder: existingCount,
         }
@@ -1333,7 +1369,7 @@ export const addProject = asyncHandler(async (req, res) => {
 // UPDATE PROJECT
 export const updateProject = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { title, description, techStack, githubUrl, liveUrl, thumbnailUrl } = req.body;
+    const { title, description, techStack, githubUrl, liveUrl, url, thumbnailUrl } = req.body;
 
     const project = await prisma.project.findUnique({ where: { id } });
 
@@ -1350,14 +1386,18 @@ export const updateProject = asyncHandler(async (req, res) => {
     if (title       !== undefined) data.title       = title.trim();
     if (description !== undefined) data.description = description.trim();
     if (githubUrl    !== undefined) data.githubUrl    = githubUrl    || null;
-    if (liveUrl      !== undefined) data.liveUrl      = liveUrl      || null;
+    if (liveUrl      !== undefined) data.liveUrl      = liveUrl      || url || null;
+    if (url          !== undefined && liveUrl === undefined) data.liveUrl = url || null;
     if (thumbnailUrl !== undefined) data.thumbnailUrl = thumbnailUrl || null;
 
-    if (techStack !== undefined) {
-        if (!Array.isArray(techStack)) {
-            throw new ApiError(400, "techStack must be an array of strings");
+    if (techStack !== undefined && techStack !== null) {
+        if (Array.isArray(techStack)) {
+            data.techStack = techStack;
+        } else if (typeof techStack === "string") {
+            data.techStack = techStack.split(",").map(t => t.trim()).filter(Boolean);
+        } else {
+            throw new ApiError(400, "techStack must be an array of strings or a comma-separated string");
         }
-        data.techStack = techStack;
     }
 
     const updated = await prisma.project.update({

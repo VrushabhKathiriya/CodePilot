@@ -327,9 +327,12 @@ export const getDashboardSummary = async (userId) => {
         weakestTopic,
         performanceScore,
         platforms: platformStats.map(s => ({
-            platform: s.platform,
-            rating:   s.rating,
-            solved:   s.totalSolved,
+            platform:  s.platform,
+            rating:    s.rating,
+            maxRating: s.maxRating,
+            rank:      s.rank,
+            handle:    s.handle,
+            solved:    s.totalSolved,
         })),
     };
 };

@@ -56,9 +56,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     document.title = 'Dashboard — CodePilot';
-    fetchDashboard();
-    fetchRating();
-    fetchTopics();
+    fetchDashboard(true);
+    fetchRating(true);
+    fetchTopics(true);
     loadContests();
     loadAISummary();
     loadActivity();
@@ -103,6 +103,9 @@ export default function DashboardPage() {
   const isLoading = loading.dashboard;
 
   const cfStat = dash?.platforms?.find((p) => p.platform === 'CODEFORCES');
+
+  const ratingData = rating?.history?.length > 0 ? rating.history : MOCK_RATING_DATA;
+  const topicData = topics?.topics?.length > 0 ? topics.topics : MOCK_RADAR;
 
   return (
     <PageWrapper title="Dashboard">
@@ -164,7 +167,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <RatingLineChart
-              data={rating?.history || MOCK_RATING_DATA}
+              data={ratingData}
               lines={RATING_LINES}
               height={240}
             />
@@ -176,7 +179,7 @@ export default function DashboardPage() {
           <Card style={{ height: '100%' }}>
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 4 }}>Topics</p>
             <h6 style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-lg)', marginBottom: 'var(--space-4)' }}>Topic Mastery</h6>
-            <TopicRadarChart data={topics?.topics || MOCK_RADAR} height={260} />
+            <TopicRadarChart data={topicData} height={260} />
           </Card>
         </motion.div>
 

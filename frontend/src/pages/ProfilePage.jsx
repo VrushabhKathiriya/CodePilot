@@ -163,18 +163,22 @@ export default function ProfilePage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <GenericListSection
             title="Education"
-            items={user?.education || []}
-            onCreate={(d) => userApi.addEducation(d)}
+            items={user?.educations || user?.education || []}
+            onCreate={(d) => userApi.addEducation({
+              ...d,
+              startYear: d.startYear ? parseInt(d.startYear) : null,
+              graduationYear: d.graduationYear ? parseInt(d.graduationYear) : null,
+            })}
             onUpdate={(id, d) => userApi.updateEducation(id, d)}
             onDelete={(id) => userApi.deleteEducation(id)}
             fields={[
-              { key: 'institution', label: 'Institution', placeholder: 'BITS Pilani' },
+              { key: 'instituteName', label: 'Institute Name', placeholder: 'BITS Pilani' },
               { key: 'degree', label: 'Degree', placeholder: 'B.Tech' },
-              { key: 'field', label: 'Field of Study', placeholder: 'Computer Science' },
-              { key: 'startDate', label: 'Start Date', type: 'date' },
-              { key: 'endDate',   label: 'End Date (optional)', type: 'date' },
+              { key: 'branch', label: 'Branch / Field of Study', placeholder: 'Computer Science' },
+              { key: 'startYear', label: 'Start Year', type: 'number', placeholder: '2021' },
+              { key: 'graduationYear', label: 'Graduation Year', type: 'number', placeholder: '2025' },
             ]}
-            displayKey="institution"
+            displayKey="instituteName"
             subKey="degree"
             onRefresh={async () => { const r = await authApi.getMe(); setUser(r.data?.data); }}
             toast={toast}
@@ -187,19 +191,24 @@ export default function ProfilePage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <GenericListSection
             title="Experience"
-            items={user?.experience || []}
-            onCreate={(d) => userApi.addExperience(d)}
+            items={user?.experiences || user?.experience || []}
+            onCreate={(d) => userApi.addExperience({
+              ...d,
+              startYear: d.startYear ? parseInt(d.startYear) : null,
+              endYear: d.endYear ? parseInt(d.endYear) : null,
+              isCurrent: !d.endYear,
+            })}
             onUpdate={(id, d) => userApi.updateExperience(id, d)}
             onDelete={(id) => userApi.deleteExperience(id)}
             fields={[
               { key: 'company', label: 'Company', placeholder: 'Google' },
-              { key: 'role', label: 'Role', placeholder: 'SWE Intern' },
+              { key: 'jobTitle', label: 'Job Title / Role', placeholder: 'Software Engineer Intern' },
               { key: 'description', label: 'Description', type: 'textarea' },
-              { key: 'startDate', label: 'Start Date', type: 'date' },
-              { key: 'endDate',   label: 'End Date (optional)', type: 'date' },
+              { key: 'startYear', label: 'Start Year', type: 'number', placeholder: '2023' },
+              { key: 'endYear',   label: 'End Year (leave blank if current)', type: 'number', placeholder: '2024' },
             ]}
             displayKey="company"
-            subKey="role"
+            subKey="jobTitle"
             onRefresh={async () => { const r = await authApi.getMe(); setUser(r.data?.data); }}
             toast={toast}
           />
@@ -218,7 +227,8 @@ export default function ProfilePage() {
             fields={[
               { key: 'title', label: 'Project Title', placeholder: 'My Awesome Project' },
               { key: 'description', label: 'Description', type: 'textarea' },
-              { key: 'url', label: 'URL (optional)', placeholder: 'https://...' },
+              { key: 'techStack', label: 'Tech Stack (comma-separated)', placeholder: 'React, Node.js, PostgreSQL' },
+              { key: 'liveUrl', label: 'Live URL (optional)', placeholder: 'https://...' },
               { key: 'githubUrl', label: 'GitHub URL (optional)', placeholder: 'https://github.com/...' },
             ]}
             displayKey="title"
@@ -234,15 +244,20 @@ export default function ProfilePage() {
           <GenericListSection
             title="Achievements"
             items={user?.achievements || []}
-            onCreate={(d) => userApi.addAchievement(d)}
+            onCreate={(d) => userApi.addAchievement({
+              ...d,
+              issueYear: d.issueYear ? parseInt(d.issueYear) : null,
+            })}
             onUpdate={(id, d) => userApi.updateAchievement(id, d)}
             onDelete={(id) => userApi.deleteAchievement(id)}
             fields={[
               { key: 'title', label: 'Title', placeholder: 'Codeforces Expert' },
+              { key: 'issuer', label: 'Issuer / Organization', placeholder: 'Codeforces' },
               { key: 'description', label: 'Description', type: 'textarea' },
-              { key: 'date', label: 'Date', type: 'date' },
+              { key: 'issueYear', label: 'Year', type: 'number', placeholder: '2024' },
             ]}
             displayKey="title"
+            subKey="issuer"
             onRefresh={async () => { const r = await authApi.getMe(); setUser(r.data?.data); }}
             toast={toast}
           />

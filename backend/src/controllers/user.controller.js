@@ -154,7 +154,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     }
 
     // VERIFY USER
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: { isVerified: true },
     });
@@ -165,9 +165,61 @@ export const verifyOTP = asyncHandler(async (req, res) => {
         data: { isUsed: true },
     });
 
+    // TOKENS
+    const accessToken = generateAccessToken(updatedUser);
+    const refreshToken = generateRefreshToken(updatedUser);
+
+    // STORE REFRESH TOKEN
+    await prisma.refreshToken.create({
+        data: {
+            userId: updatedUser.id,
+            tokenHash: refreshToken,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+    });
+
+    // CREATE SESSION
+    await prisma.session.create({
+        data: {
+            userId: updatedUser.id,
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"],
+            lastActivity: new Date(),
+        },
+    });
+
+    // UPDATE LAST LOGIN
+    await prisma.user.update({
+        where: { id: updatedUser.id },
+        data: { lastLogin: new Date() },
+    });
+
+    const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+    };
+
     return res
         .status(200)
-        .json(new ApiResponse(200, null, "Account verified successfully"));
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    accessToken,
+                    refreshToken,
+                    user: {
+                        id: updatedUser.id,
+                        fullName: updatedUser.fullName,
+                        username: updatedUser.username,
+                        email: updatedUser.email,
+                    },
+                },
+                "Account verified successfully"
+            )
+        );
 });
 
 // LOGIN

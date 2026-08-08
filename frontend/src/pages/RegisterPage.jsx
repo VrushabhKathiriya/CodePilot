@@ -10,7 +10,7 @@ import Toast from '../components/shared/Toast';
 import { PublicNavbar } from '../components/layout/Navbar';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', username: '', email: '', password: '' });
+  const [form, setForm] = useState({ fullName: '', username: '', email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const toast = useToast();
@@ -20,12 +20,22 @@ export default function RegisterPage() {
 
   function validate() {
     const e = {};
-    if (!form.name.trim())       e.name = 'Name is required';
+    if (!form.fullName.trim())   e.fullName = 'Full Name is required';
     if (!form.username.trim())   e.username = 'Username is required';
     if (form.username.length < 3) e.username = 'Username must be at least 3 characters';
-    if (!form.email)             e.email = 'Email is required';
+    if (!form.email.trim())      e.email = 'Email is required';
     if (!form.password)          e.password = 'Password is required';
-    if (form.password.length < 8) e.password = 'Password must be at least 8 characters';
+    else {
+      const pass = form.password;
+      const hasLength = pass.length >= 8;
+      const hasUpper = /[A-Z]/.test(pass);
+      const hasLower = /[a-z]/.test(pass);
+      const hasNumber = /[0-9]/.test(pass);
+      const hasSpecial = /[^A-Za-z0-9]/.test(pass);
+      if (!hasLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+        e.password = 'Password must be 8+ chars and contain uppercase, lowercase, number & special char';
+      }
+    }
     return e;
   }
 
@@ -106,10 +116,10 @@ export default function RegisterPage() {
           <div style={{ height: 3, width: 40, background: 'var(--accent)', borderRadius: 'var(--radius-full)', marginBottom: 'var(--space-8)' }} />
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            {field('name',     'Full Name',  'text',     'John Doe',          <User size={16} />)}
+            {field('fullName', 'Full Name',  'text',     'John Doe',          <User size={16} />)}
             {field('username', 'Username',   'text',     'johndoe_cp',        <User size={16} />)}
             {field('email',    'Email',      'email',    'you@example.com',   <Mail size={16} />)}
-            {field('password', 'Password',   'password', 'Min 8 characters',  <Lock size={16} />)}
+            {field('password', 'Password',   'password', 'Min 8 chars (e.g. Pass@123)', <Lock size={16} />)}
 
             <Button type="submit" loading={loading} fullWidth size="lg" icon={<UserPlus size={18} />} style={{ marginTop: 8 }}>
               Create Account

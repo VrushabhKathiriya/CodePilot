@@ -8,7 +8,7 @@ export function useAuth() {
 
   async function login(credentials) {
     const res = await authApi.login(credentials);
-    const u = res.data?.data;
+    const u = res.data?.data?.user || res.data?.data;
     setUser(u);
     return u;
   }

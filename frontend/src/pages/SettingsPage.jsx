@@ -9,6 +9,7 @@ import Badge from '../components/ui/Badge';
 import { syncApi } from '../api/sync.api';
 import { authApi } from '../api/auth.api';
 import { useAuthStore } from '../store/authStore';
+import { useAnalyticsStore } from '../store/analyticsStore';
 import { useToast } from '../hooks/useToast';
 import { formatRelativeTime } from '../utils/formatters';
 import { PLATFORMS } from '../utils/constants';
@@ -54,6 +55,7 @@ export default function SettingsPage() {
 function PlatformsTab({ user, toast }) {
   const [handles, setHandles] = useState({});
   const [syncing, setSyncing] = useState({});
+  const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
     const h = {};
@@ -78,6 +80,11 @@ function PlatformsTab({ user, toast }) {
     setSyncing((p) => ({ ...p, [platform]: true }));
     try {
       await syncApi.syncPlatform({ platform, handle });
+      useAnalyticsStore.getState().clearAll();
+      try {
+        const meRes = await authApi.getMe();
+        if (meRes.data?.data) setUser(meRes.data.data);
+      } catch (_) {}
       toast.success(`${PLATFORMS[platform]?.name || platform} synced!`);
     } catch (e) {
       toast.error(e.response?.data?.message || 'Sync failed');
@@ -91,7 +98,12 @@ function PlatformsTab({ user, toast }) {
     if (!handle) return toast.error('Enter your GitHub username first');
     setSyncing((p) => ({ ...p, github: true }));
     try {
-      await syncApi.syncGithub({ username: handle });
+      await syncApi.syncGithub({ handle });
+      useAnalyticsStore.getState().clearAll();
+      try {
+        const meRes = await authApi.getMe();
+        if (meRes.data?.data) setUser(meRes.data.data);
+      } catch (_) {}
       toast.success('GitHub synced!');
     } catch (e) {
       toast.error(e.response?.data?.message || 'Sync failed');

@@ -178,7 +178,7 @@ export const getTopicStats = asyncHandler(async (req, res) => {
 
 // SYNC GITHUB
 export const syncGithubStats = asyncHandler(async (req, res) => {
-    const { handle } = req.body;
+    const handle = req.body.handle || req.body.username;
 
     if (!handle) {
         throw new ApiError(400, "GitHub handle is required");

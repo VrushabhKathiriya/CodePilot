@@ -52,7 +52,8 @@ export default function VerifyOTPPage() {
     setLoading(true);
     try {
       const res = await authApi.verifyOTP({ email, otp: code });
-      setUser(res.data?.data);
+      const u = res.data?.data?.user || res.data?.data;
+      if (u) setUser(u);
       toast.success('Email verified! Welcome to CodePilot!');
       navigate('/dashboard', { replace: true });
     } catch (err) {

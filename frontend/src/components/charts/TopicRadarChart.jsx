@@ -22,10 +22,14 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 export default function TopicRadarChart({ data = [], height = 300 }) {
-  // data: [{ topic: 'DP', count: 40, full: 100 }, ...]
+  const chartData = (data || []).map((d) => ({
+    ...d,
+    count: d.count ?? d.solved ?? d.problemCount ?? 0,
+  }));
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <RadarChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+      <RadarChart data={chartData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
         <PolarGrid stroke="var(--border)" />
         <PolarAngleAxis
           dataKey="topic"

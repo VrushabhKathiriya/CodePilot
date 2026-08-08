@@ -79,8 +79,8 @@ export function useAnalytics() {
   function setKey(key, v) { setLoading((p) => ({ ...p, [key]: v })); }
   function setErr(key, e) { setErrors((p) => ({ ...p, [key]: e })); }
 
-  const fetch = useCallback(async (key, apiFn, storeSetter, mapper) => {
-    if (store[key]) return store[key]; // cached
+  const fetch = useCallback(async (key, apiFn, storeSetter, mapper, force = false) => {
+    if (!force && store[key] !== null && store[key] !== undefined) return store[key]; // cached
     setKey(key, true); setErr(key, null);
     try {
       const res = await apiFn();
@@ -103,10 +103,11 @@ export function useAnalytics() {
     contests:   store.contests,
     topics:     store.topics,
     difficulty: store.difficulty,
-    fetchDashboard:  () => fetch('dashboard',  analyticsApi.getDashboard,  store.setDashboard),
-    fetchRating:     () => fetch('rating',     analyticsApi.getRating,     store.setRating,     mapRatingData),
-    fetchContests:   () => fetch('contests',   analyticsApi.getContests,   store.setContests,   mapContestsData),
-    fetchTopics:     () => fetch('topics',     analyticsApi.getTopics,     store.setTopics,     mapTopics),
-    fetchDifficulty: () => fetch('difficulty', analyticsApi.getDifficulty, store.setDifficulty, mapDifficulty),
+    fetchDashboard:  (force = false) => fetch('dashboard',  analyticsApi.getDashboard,  store.setDashboard,  null, force),
+    fetchRating:     (force = false) => fetch('rating',     analyticsApi.getRating,     store.setRating,     mapRatingData, force),
+    fetchContests:   (force = false) => fetch('contests',   analyticsApi.getContests,   store.setContests,   mapContestsData, force),
+    fetchTopics:     (force = false) => fetch('topics',     analyticsApi.getTopics,     store.setTopics,     mapTopics, force),
+    fetchDifficulty: (force = false) => fetch('difficulty', analyticsApi.getDifficulty, store.setDifficulty, mapDifficulty, force),
+    clearAll: store.clearAll,
   };
 }

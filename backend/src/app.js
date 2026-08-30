@@ -63,6 +63,22 @@ cron.schedule("0 */6 * * *", async () => {
     }
 });
 
+// KEEP-ALIVE — prevent Render free tier from sleeping after 15 min of inactivity.
+// Render auto-injects RENDER_EXTERNAL_URL (e.g. https://codepilot-api.onrender.com).
+// This cron pings /health every 10 min so the server is always considered "active".
+// Without this: server sleeps → 30-60 sec cold start for users → cron jobs stop running.
+if (process.env.NODE_ENV === "production" && process.env.RENDER_EXTERNAL_URL) {
+    cron.schedule("*/10 * * * *", async () => {
+        try {
+            const res = await fetch(`${process.env.RENDER_EXTERNAL_URL}/health`);
+            console.log(`[keep-alive] Pinged /health — status: ${res.status}`);
+        } catch (error) {
+            console.error("[keep-alive] Self-ping failed:", error.message);
+        }
+    });
+    console.log(`[keep-alive] Self-ping cron registered → ${process.env.RENDER_EXTERNAL_URL}/health`);
+}
+
 // HEALTH CHECK
 app.get("/", (req, res) => {
     res.json({ success: true, message: "CodePilot API is running", version: "1.0.0" });

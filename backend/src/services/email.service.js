@@ -11,6 +11,9 @@ const createTransporter = async () => {
         host:   process.env.SMTP_HOST,
         port:   isProduction ? 465 : Number(process.env.SMTP_PORT || 587),
         secure: isProduction, // true for port 465 (SSL), false for 587 (STARTTLS)
+        connectionTimeout: 10000, // fail after 10s if can't connect
+        greetingTimeout:   10000, // fail after 10s if no greeting
+        socketTimeout:     10000, // fail after 10s of inactivity
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,

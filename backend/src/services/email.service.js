@@ -5,18 +5,26 @@ let transporter = null;
 const createTransporter = async () => {
     if (transporter) return transporter;
 
+    const isProduction = process.env.NODE_ENV === "production";
+
     transporter = nodemailer.createTransport({
         host:   process.env.SMTP_HOST,
-        port:   Number(process.env.SMTP_PORT),
-        secure: false,
+        port:   isProduction ? 465 : Number(process.env.SMTP_PORT || 587),
+        secure: isProduction, // true for port 465 (SSL), false for 587 (STARTTLS)
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
         },
     });
 
-    await transporter.verify();
-    console.log("[email] SMTP transporter connected successfully");
+    try {
+        await transporter.verify();
+        console.log("[email] SMTP transporter connected successfully");
+    } catch (err) {
+        console.error("[email] SMTP verify failed:", err.message);
+        transporter = null; // reset so next call retries
+    }
+
     return transporter;
 };
 

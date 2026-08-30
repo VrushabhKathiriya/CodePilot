@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 
 // Generates a GitHub-style contribution heatmap
 // data: { [YYYY-MM-DD]: count }
-export default function HeatMap({ data = {}, weeks = 26, label = 'Activity' }) {
+export default function HeatMap({ data = {}, weeks = 26, label = 'Activity', color = '#FF4136' }) {
   const cells = useMemo(() => {
     const today = new Date();
     const startDate = new Date(today);
@@ -23,13 +23,21 @@ export default function HeatMap({ data = {}, weeks = 26, label = 'Activity' }) {
   const maxCount = useMemo(() => Math.max(...Object.values(data), 1), [data]);
   const totalActivity = useMemo(() => Object.values(data).reduce((a, b) => a + b, 0), [data]);
 
+  // Parse hex to r,g,b so we can make rgba at any opacity
+  function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    const bigint = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16);
+    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+  }
+  const [r, g, b] = hexToRgb(color);
+
   function getColor(count) {
     if (!count) return 'var(--bg-elevated)';
     const intensity = count / maxCount;
-    if (intensity < 0.25) return 'rgba(255,65,54,0.25)';
-    if (intensity < 0.50) return 'rgba(255,65,54,0.45)';
-    if (intensity < 0.75) return 'rgba(255,65,54,0.70)';
-    return 'rgba(255,65,54,0.95)';
+    if (intensity < 0.25) return `rgba(${r},${g},${b},0.25)`;
+    if (intensity < 0.50) return `rgba(${r},${g},${b},0.45)`;
+    if (intensity < 0.75) return `rgba(${r},${g},${b},0.70)`;
+    return `rgba(${r},${g},${b},0.95)`;
   }
 
   // Group by weeks
@@ -101,7 +109,7 @@ export default function HeatMap({ data = {}, weeks = 26, label = 'Activity' }) {
         {[0, 0.25, 0.5, 0.75, 1].map((v, i) => (
           <div key={i} style={{
             width: 11, height: 11, borderRadius: 2,
-            background: v === 0 ? 'var(--bg-elevated)' : `rgba(255,65,54,${0.25 + v * 0.7})`,
+            background: v === 0 ? 'var(--bg-elevated)' : `rgba(${r},${g},${b},${0.25 + v * 0.7})`,
           }} />
         ))}
         <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>More</span>

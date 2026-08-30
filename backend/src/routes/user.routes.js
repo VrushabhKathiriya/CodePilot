@@ -7,24 +7,25 @@ import {
 } from "../controllers/user.controller.js";
 import upload from "../middlewares/multer.middleware.js";
 import verifyJWT from "../middlewares/auth.middleware.js";
-import { authLimiter, otpLimiter } from "../middlewares/rateLimiter.middleware.js";
+// Rate limiters disabled during development — re-enable before production
+// import { authLimiter, otpLimiter } from "../middlewares/rateLimiter.middleware.js";
 import { Router } from "express";
 
 const router = Router();
 
 // AUTH
-router.post("/register",       authLimiter, registerUser);
-router.post("/verify-otp",     authLimiter, verifyOTP);
-router.post("/resend-otp",     otpLimiter,  resendOtp);
-router.post("/login",          authLimiter, loginUser);
+router.post("/register",       registerUser);
+router.post("/verify-otp",     verifyOTP);
+router.post("/resend-otp",     resendOtp);
+router.post("/login",          loginUser);
 router.post("/refresh-token",  refreshAccessToken);
 router.post("/logout",         verifyJWT, logoutUser);
 router.get("/me",              verifyJWT, getCurrentUser);
 
 // PASSWORD + EMAIL CHANGE
 router.post("/change-password",     verifyJWT, changePassword);
-router.post("/forgot-password",     authLimiter, forgotPassword);
-router.post("/reset-password",      authLimiter, resetPassword);
+router.post("/forgot-password",     forgotPassword);
+router.post("/reset-password",      resetPassword);
 router.post("/change-email",        verifyJWT, changeEmail);
 router.post("/verify-email-change", verifyJWT, verifyEmailChange);
 

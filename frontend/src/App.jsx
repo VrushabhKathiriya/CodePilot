@@ -10,7 +10,6 @@ import VerifyOTPPage      from './pages/VerifyOTPPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage  from './pages/ResetPasswordPage';
 import DashboardPage      from './pages/DashboardPage';
-import AnalyticsPage      from './pages/AnalyticsPage';
 import AICoachPage        from './pages/AICoachPage';
 import RecommendationsPage from './pages/RecommendationsPage';
 import PortfolioPage      from './pages/PortfolioPage';
@@ -54,7 +53,6 @@ export default function App() {
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard"       element={<DashboardPage />} />
-              <Route path="/analytics"       element={<AnalyticsPage />} />
               <Route path="/ai-coach"        element={<AICoachPage />} />
               <Route path="/recommendations" element={<RecommendationsPage />} />
               <Route path="/profile"         element={<ProfilePage />} />

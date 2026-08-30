@@ -1,10 +1,13 @@
 import prisma from "../config/prisma.js";
+import axios from "axios";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 import {
     fetchLeetcodeStats,
+    fetchLeetcodeRecentSolved,
+    fetchLeetcodeAttempted,
     fetchCodeforcesStats,
     fetchCodeforcesContestHistory,
     fetchCodechefStats,
@@ -48,11 +51,12 @@ export const syncCodingPlatform = asyncHandler(async (req, res) => {
         throw new ApiError(400, `Could not fetch stats from ${platform}. Check if the username is correct.`);
     }
 
-    const stats          = fetchResult.stats || fetchResult;
-    const badges         = fetchResult.badges        || [];
-    const dailyActivity  = fetchResult.dailyActivity || [];
-    const topicStats     = fetchResult.topicStats    || [];
-    let   contestHistory = fetchResult.contestHistory || [];
+    const stats           = fetchResult.stats || fetchResult;
+    const badges          = fetchResult.badges         || [];
+    const dailyActivity   = fetchResult.dailyActivity  || [];
+    const topicStats      = fetchResult.topicStats     || [];
+    const ratingBreakdown = fetchResult.ratingBreakdown || [];
+    let   contestHistory  = fetchResult.contestHistory  || [];
 
     if (config.fetchHistory) {
         contestHistory = await config.fetchHistory(normalizedHandle);
@@ -129,8 +133,13 @@ export const syncCodingPlatform = asyncHandler(async (req, res) => {
     }
 
     if (topicStats.length > 0) {
+        // Delete only non-rating rows (rating:* rows handled separately below)
         await prisma.topicStats.deleteMany({
-            where: { userId: req.user.id, platform: normalizedPlatform }
+            where: {
+                userId:   req.user.id,
+                platform: normalizedPlatform,
+                NOT:      { topic: { startsWith: "rating:" } },
+            }
         });
         await prisma.topicStats.createMany({
             data: topicStats.map(t => ({
@@ -138,6 +147,25 @@ export const syncCodingPlatform = asyncHandler(async (req, res) => {
                 platform:     normalizedPlatform,
                 topic:        t.topic,
                 problemCount: t.count,
+            }))
+        });
+    }
+
+    // Save CF rating breakdown (stored as TopicStats with topic = "rating:800" etc.)
+    if (normalizedPlatform === "CODEFORCES" && ratingBreakdown.length > 0) {
+        await prisma.topicStats.deleteMany({
+            where: {
+                userId:   req.user.id,
+                platform: normalizedPlatform,
+                topic:    { startsWith: "rating:" },
+            }
+        });
+        await prisma.topicStats.createMany({
+            data: ratingBreakdown.map(r => ({
+                userId:       req.user.id,
+                platform:     normalizedPlatform,
+                topic:        `rating:${r.rating}`,
+                problemCount: r.count,
             }))
         });
     }
@@ -271,6 +299,33 @@ export const refreshUpcomingContests = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, { count }, "Upcoming contests refreshed"));
 });
 
+// GET CONTEST HISTORY (reads from DB — populated during platform sync)
+export const getContestHistory = asyncHandler(async (req, res) => {
+    const { platform } = req.query;
+
+    const where = { userId: req.user.id };
+    if (platform) {
+        where.platform = platform.toUpperCase().trim();
+    }
+
+    const history = await prisma.contestHistory.findMany({
+        where,
+        orderBy: { contestDate: "asc" },
+        select: {
+            platform:     true,
+            contestName:  true,
+            contestDate:  true,
+            rank:         true,
+            rating:       true,
+            ratingChange: true,
+        },
+    });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, history, "Contest history fetched successfully"));
+});
+
 // GET GITHUB DAILY ACTIVITY  (for contribution heatmap)
 export const getGithubDailyActivity = asyncHandler(async (req, res) => {
     const { days } = req.query;
@@ -326,4 +381,115 @@ export const getCpDailyActivity = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, activity, "CP daily activity fetched successfully"));
-});
+});
+
+// GET GITHUB STATS (core numbers for the dashboard cards)
+export const getGithubStats = asyncHandler(async (req, res) => {
+    const stats = await prisma.gitHubStats.findUnique({
+        where: { userId: req.user.id },
+    });
+    return res
+        .status(200)
+        .json(new ApiResponse(200, stats || null, "GitHub stats fetched"));
+});
+
+// GET GITHUB LANGUAGES (for the language bar / legend)
+export const getGithubLanguages = asyncHandler(async (req, res) => {
+    const langs = await prisma.gitHubLanguage.findMany({
+        where:   { userId: req.user.id },
+        orderBy: { percentage: "desc" },
+    });
+    return res
+        .status(200)
+        .json(new ApiResponse(200, langs, "GitHub languages fetched"));
+});
+
+// GET CF PROBLEMS — returns both solved and unsolved lists in one call
+export const getCfProblems = asyncHandler(async (req, res) => {
+    const profile = await prisma.userProfile.findUnique({
+        where:  { userId: req.user.id },
+        select: { codeforcesHandle: true },
+    });
+
+    if (!profile?.codeforcesHandle) {
+        throw new ApiError(400, "No Codeforces handle linked. Sync Codeforces first.");
+    }
+
+    const handle = profile.codeforcesHandle;
+
+    let submissions;
+    try {
+        const cfRes = await axios.get(
+            `https://codeforces.com/api/user.status?handle=${handle}&from=1&count=10000`
+        );
+        if (cfRes.data.status !== "OK") throw new Error("CF API returned non-OK status");
+        submissions = cfRes.data.result;
+    } catch (err) {
+        throw new ApiError(502, `Could not fetch Codeforces submissions: ${err.message}`);
+    }
+
+    const solvedSet    = new Set();
+    const solvedMap    = {};  // key -> problem info for AC'd problems
+    const attemptedMap = {};
+
+    submissions.forEach(sub => {
+        const key = `${sub.problem.contestId}-${sub.problem.index}`;
+        if (sub.verdict === "OK") {
+            solvedSet.add(key);
+            if (!solvedMap[key]) {
+                solvedMap[key] = {
+                    name:      sub.problem.name,
+                    contestId: sub.problem.contestId,
+                    index:     sub.problem.index,
+                    rating:    sub.problem.rating  || null,
+                    tags:      sub.problem.tags    || [],
+                    url:       `https://codeforces.com/contest/${sub.problem.contestId}/problem/${sub.problem.index}`,
+                };
+            }
+        } else {
+            if (!attemptedMap[key]) {
+                attemptedMap[key] = {
+                    name:      sub.problem.name,
+                    contestId: sub.problem.contestId,
+                    index:     sub.problem.index,
+                    rating:    sub.problem.rating  || null,
+                    tags:      sub.problem.tags    || [],
+                    url:       `https://codeforces.com/contest/${sub.problem.contestId}/problem/${sub.problem.index}`,
+                };
+            }
+        }
+    });
+
+    const solved = Object.values(solvedMap)
+        .sort((a, b) => (a.rating || 9999) - (b.rating || 9999));
+
+    const unsolved = Object.entries(attemptedMap)
+        .filter(([key]) => !solvedSet.has(key))
+        .map(([, prob]) => prob)
+        .sort((a, b) => (a.rating || 9999) - (b.rating || 9999));
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { solved, unsolved }, `${solved.length} solved, ${unsolved.length} unsolved problems fetched`));
+});
+
+// GET LEETCODE RECENT SOLVED PROBLEMS
+export const getLeetCodeProblems = asyncHandler(async (req, res) => {
+    const profile = await prisma.userProfile.findUnique({
+        where:  { userId: req.user.id },
+        select: { leetcodeUsername: true },
+    });
+
+    if (!profile?.leetcodeUsername) {
+        throw new ApiError(400, "No LeetCode username linked. Sync LeetCode first.");
+    }
+
+    const [solved, attempted] = await Promise.all([
+        fetchLeetcodeRecentSolved(profile.leetcodeUsername),
+        fetchLeetcodeAttempted(profile.leetcodeUsername),
+    ]);
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { solved, attempted }, `${solved.length} solved, ${attempted.length} attempted problems fetched`));
+});

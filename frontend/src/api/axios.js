@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
   withCredentials: true,   // send httpOnly cookies automatically
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
@@ -42,8 +42,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await axios.post(
-          '/api/v1/users/refresh-token',
+        await api.post(
+          '/users/refresh-token',
           {},
           { withCredentials: true }
         );

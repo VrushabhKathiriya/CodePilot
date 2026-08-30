@@ -3,10 +3,13 @@ import ApiError from "../utils/ApiError.js";
 
 // LEETCODE HEADERS
 const LEETCODE_HEADERS = {
-    "Content-Type": "application/json",
-    "User-Agent":   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Referer":      "https://leetcode.com",
-    "Origin":       "https://leetcode.com",
+    "Content-Type":  "application/json",
+    "User-Agent":    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Referer":       "https://leetcode.com",
+    "Origin":        "https://leetcode.com",
+    "x-csrftoken":   "csrftoken",
+    "Accept":        "application/json",
+    "Accept-Language": "en-US,en;q=0.9",
 };
 
 const leetcodeGraphQL = async (query, variables) => {
@@ -106,18 +109,126 @@ query {
 }
 `;
 
+const LEETCODE_RECENT_AC_QUERY = `
+query recentAcSubmissions($username: String!, $limit: Int!) {
+  recentAcSubmissionList(username: $username, limit: $limit) {
+    id
+    title
+    titleSlug
+    timestamp
+  }
+}
+`;
+
+const LEETCODE_RECENT_ALL_QUERY = `
+query recentSubmissions($username: String!, $limit: Int!) {
+  recentSubmissionList(username: $username, limit: $limit) {
+    id
+    title
+    titleSlug
+    timestamp
+    statusDisplay
+  }
+}
+`;
+
+const LEETCODE_PROBLEM_DIFFICULTY_QUERY = `
+query questionData($titleSlug: String!) {
+  question(titleSlug: $titleSlug) {
+    difficulty
+  }
+}
+`;
+
+// Fetch difficulty for a single problem slug (cached to avoid duplicate calls)
+const difficultyCache = {};
+async function fetchDifficulty(titleSlug) {
+    if (difficultyCache[titleSlug]) return difficultyCache[titleSlug];
+    try {
+        const body = await leetcodeGraphQL(LEETCODE_PROBLEM_DIFFICULTY_QUERY, { titleSlug });
+        const diff = body?.data?.question?.difficulty || null;
+        difficultyCache[titleSlug] = diff;
+        return diff;
+    } catch {
+        return null;
+    }
+}
+
+// LEETCODE — recent accepted submissions with difficulty enrichment
+// Note: LeetCode's API hard-caps recentAcSubmissionList at ~20 results
+export const fetchLeetcodeRecentSolved = async (handle) => {
+    try {
+        const body = await leetcodeGraphQL(LEETCODE_RECENT_AC_QUERY, { username: handle, limit: 100 });
+        const submissions = body?.data?.recentAcSubmissionList || [];
+        // Deduplicate by titleSlug (keep most recent)
+        const seen = new Set();
+        const deduped = submissions.filter(s => {
+            if (seen.has(s.titleSlug)) return false;
+            seen.add(s.titleSlug);
+            return true;
+        });
+        // Enrich with difficulty in parallel
+        const difficulties = await Promise.all(deduped.map(s => fetchDifficulty(s.titleSlug)));
+        return deduped.map((s, i) => ({
+            id:         s.id,
+            title:      s.title,
+            titleSlug:  s.titleSlug,
+            url:        `https://leetcode.com/problems/${s.titleSlug}/`,
+            difficulty: difficulties[i] || null,
+            solvedAt:   new Date(parseInt(s.timestamp) * 1000),
+        }));
+    } catch {
+        return [];
+    }
+};
+
+// LEETCODE — recent attempted (non-AC) submissions with difficulty enrichment
+export const fetchLeetcodeAttempted = async (handle) => {
+    try {
+        const [acBody, allBody] = await Promise.all([
+            leetcodeGraphQL(LEETCODE_RECENT_AC_QUERY, { username: handle, limit: 100 }),
+            leetcodeGraphQL(LEETCODE_RECENT_ALL_QUERY, { username: handle, limit: 200 }),
+        ]);
+        const acSlugs = new Set((acBody?.data?.recentAcSubmissionList || []).map(s => s.titleSlug));
+        const all     = allBody?.data?.recentSubmissionList || [];
+
+        const seen = new Set();
+        const deduped = all
+            .filter(s => s.statusDisplay !== 'Accepted' && !acSlugs.has(s.titleSlug))
+            .filter(s => { if (seen.has(s.titleSlug)) return false; seen.add(s.titleSlug); return true; });
+
+        // Enrich with difficulty in parallel
+        const difficulties = await Promise.all(deduped.map(s => fetchDifficulty(s.titleSlug)));
+        return deduped.map((s, i) => ({
+            id:          s.id,
+            title:       s.title,
+            titleSlug:   s.titleSlug,
+            url:         `https://leetcode.com/problems/${s.titleSlug}/`,
+            difficulty:  difficulties[i] || null,
+            lastStatus:  s.statusDisplay,
+            attemptedAt: new Date(parseInt(s.timestamp) * 1000),
+        }));
+    } catch {
+        return [];
+    }
+};
+
 // LEETCODE — contest data
 export const fetchLeetcodeContestData = async (handle) => {
     let body;
 
     try {
         body = await leetcodeGraphQL(LEETCODE_CONTEST_QUERY, { username: handle });
-    } catch {
+    } catch (err) {
+        console.warn(`[LeetCode] Contest API blocked or failed for "${handle}":`, err.message);
         return { ranking: null, history: [] };
     }
 
     const data = body?.data;
-    if (!data) return { ranking: null, history: [] };
+    if (!data) {
+        console.warn(`[LeetCode] Contest API returned no data for "${handle}". Possible rate-limit.`);
+        return { ranking: null, history: [] };
+    }
 
     const ranking = data.userContestRanking
         ? {
@@ -127,15 +238,23 @@ export const fetchLeetcodeContestData = async (handle) => {
         }
         : null;
 
-    const history = (data.userContestRankingHistory || [])
+    const attendedHistory = (data.userContestRankingHistory || [])
         .filter(c => c.attended)
-        .map(c => ({
+        .sort((a, b) => a.contest.startTime - b.contest.startTime);
+
+    const history = attendedHistory.map((c, index) => {
+        const currentRating = Math.round(c.rating || 0);
+        const prevRating    = index === 0 ? 1500 : Math.round(attendedHistory[index - 1].rating || 1500);
+        const ratingChange  = currentRating - prevRating;
+
+        return {
             contestName:  c.contest.title,
             contestDate:  new Date(c.contest.startTime * 1000),
             rank:         c.ranking,
-            rating:       Math.round(c.rating || 0),
-            ratingChange: null,
-        }));
+            rating:       currentRating,
+            ratingChange: ratingChange,
+        };
+    });
 
     return { ranking, history };
 };
@@ -194,14 +313,20 @@ export const fetchLeetcodeStats = async (handle) => {
 
     let currentStreak = 0;
     if (activeDates.length > 0) {
-        const today    = new Date().toISOString().split("T")[0];
-        const lastDate = activeDates[activeDates.length - 1];
-        const daysSince = (new Date(today) - new Date(lastDate)) / (1000 * 60 * 60 * 24);
+        // LeetCode submissionCalendar keys are UTC unix timestamps.
+        // We compare using UTC date strings consistently. daysSince <= 1 means
+        // the last active day was today or yesterday (tolerates midnight boundary).
+        const todayUTC    = new Date().toISOString().split("T")[0];
+        const lastDate    = activeDates[activeDates.length - 1];
+        const daysSince   = Math.round((new Date(todayUTC) - new Date(lastDate)) / (1000 * 60 * 60 * 24));
 
         if (daysSince <= 1) {
+            // Walk backwards counting consecutive days
             currentStreak = 1;
             for (let i = activeDates.length - 1; i > 0; i--) {
-                const diff = (new Date(activeDates[i]) - new Date(activeDates[i - 1])) / (1000 * 60 * 60 * 24);
+                const diff = Math.round(
+                    (new Date(activeDates[i]) - new Date(activeDates[i - 1])) / (1000 * 60 * 60 * 24)
+                );
                 if (diff === 1) currentStreak++;
                 else break;
             }
@@ -280,7 +405,6 @@ export const fetchCodeforcesStats = async (handle) => {
     }
 
     const user = userInfoRes.data.result[0];
-
     let totalSolved      = null;
     let dailyActivity    = [];
     let currentStreak    = 0;
@@ -288,6 +412,8 @@ export const fetchCodeforcesStats = async (handle) => {
     let totalActiveDays  = null;
     let totalSubmissions = null;
     let topicMap         = {};
+    let ratingBreakdown  = [];
+    let unsolvedList     = [];
 
     try {
         const statusRes = await axios.get(
@@ -298,12 +424,14 @@ export const fetchCodeforcesStats = async (handle) => {
             const submissions  = statusRes.data.result;
             totalSubmissions   = submissions.length;
 
-            const solvedSet = new Set();
+            const solvedSet    = new Set();  // "contestId-index" of AC problems
+            const ratingMap    = {};         // { 800: count, 900: count, ... }
+            const attemptedMap = {};         // key -> problem info for non-AC
 
             submissions.forEach(sub => {
-                if (sub.verdict === "OK") {
-                    const key = `${sub.problem.contestId}-${sub.problem.index}`;
+                const key = `${sub.problem.contestId}-${sub.problem.index}`;
 
+                if (sub.verdict === "OK") {
                     if (!solvedSet.has(key)) {
                         solvedSet.add(key);
 
@@ -311,9 +439,38 @@ export const fetchCodeforcesStats = async (handle) => {
                         (sub.problem.tags || []).forEach(tag => {
                             topicMap[tag] = (topicMap[tag] || 0) + 1;
                         });
+
+                        // RATING BREAKDOWN (bucket to nearest 100)
+                        if (sub.problem.rating) {
+                            const bucket = Math.floor(sub.problem.rating / 100) * 100;
+                            ratingMap[bucket] = (ratingMap[bucket] || 0) + 1;
+                        }
+                    }
+                } else {
+                    // Track attempted but not-yet-solved problems
+                    if (!attemptedMap[key]) {
+                        attemptedMap[key] = {
+                            name:      sub.problem.name,
+                            contestId: sub.problem.contestId,
+                            index:     sub.problem.index,
+                            rating:    sub.problem.rating || null,
+                            tags:      sub.problem.tags   || [],
+                            url:       `https://codeforces.com/contest/${sub.problem.contestId}/problem/${sub.problem.index}`,
+                        };
                     }
                 }
             });
+
+            // Build unsolved list: attempted but never AC'd
+            unsolvedList = Object.entries(attemptedMap)
+                .filter(([key]) => !solvedSet.has(key))
+                .map(([, prob]) => prob)
+                .sort((a, b) => (a.rating || 9999) - (b.rating || 9999));
+
+            // Build sorted rating breakdown array
+            ratingBreakdown = Object.entries(ratingMap)
+                .map(([r, count]) => ({ rating: parseInt(r, 10), count }))
+                .sort((a, b) => a.rating - b.rating);
 
             totalSolved = solvedSet.size;
 
@@ -379,6 +536,8 @@ export const fetchCodeforcesStats = async (handle) => {
             topic,
             count,
         })),
+        ratingBreakdown,
+        unsolvedList,
     };
 };
 

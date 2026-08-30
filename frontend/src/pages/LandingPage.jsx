@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PublicNavbar } from '../components/layout/Navbar';
 import Toast from '../components/shared/Toast';
 import {
@@ -35,7 +35,16 @@ const item = {
 };
 
 export default function LandingPage() {
+  const navigate = useNavigate();
+  const [leaving, setLeaving] = useState(false);
+
   useEffect(() => { document.title = 'CodePilot — Your Competitive Programming OS'; }, []);
+
+  function handleSignIn(e) {
+    e.preventDefault();
+    setLeaving(true);
+    setTimeout(() => navigate('/login'), 420);
+  }
 
   return (
     <div style={{ background: 'var(--bg-primary)', minHeight: '100vh', overflowX: 'hidden' }}>
@@ -60,18 +69,27 @@ export default function LandingPage() {
           pointerEvents: 'none',
         }} />
 
-        {/* Diagonal slash */}
-        <div style={{
-          position: 'absolute',
-          top: 0, bottom: 0,
-          left: '55%',
-          width: 6,
-          background: 'var(--accent)',
-          transform: 'rotate(12deg) scaleY(1.3)',
-          transformOrigin: 'center',
-          opacity: 0.9,
-          pointerEvents: 'none',
-        }} />
+        {/* Diagonal slash — animates out when leaving */}
+        <AnimatePresence>
+          {!leaving && (
+            <motion.div
+              key="slash"
+              initial={{ opacity: 0.9, x: 0 }}
+              animate={{ opacity: 0.9, x: 0 }}
+              exit={{ opacity: 0, x: 120, transition: { duration: 0.38, ease: 'easeIn' } }}
+              style={{
+                position: 'absolute',
+                top: 0, bottom: 0,
+                left: '55%',
+                width: 6,
+                background: 'var(--accent)',
+                transform: 'rotate(12deg) scaleY(1.3)',
+                transformOrigin: 'center',
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+        </AnimatePresence>
 
         {/* Glow */}
         <div style={{
@@ -141,33 +159,41 @@ export default function LandingPage() {
               transition={{ delay: 0.5, duration: 0.5 }}
               style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}
             >
+              {/* Connect Your Profiles — becomes ghost when Sign In is clicked */}
               <Link
                 to="/register"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
-                  background: 'var(--accent)', color: '#fff',
+                  background: leaving ? 'transparent' : 'var(--accent)',
+                  color: leaving ? 'var(--text-muted)' : '#fff',
                   padding: '14px 28px', borderRadius: 'var(--radius-lg)',
                   fontWeight: 700, fontSize: 'var(--text-lg)', textDecoration: 'none',
-                  transition: 'all var(--transition-fast)',
-                  boxShadow: 'var(--shadow-accent)',
+                  border: leaving ? '1px solid var(--border)' : '1px solid transparent',
+                  transition: 'all 0.3s ease',
+                  boxShadow: leaving ? 'none' : 'var(--shadow-accent)',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-hover)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.transform = ''; }}
               >
                 Connect Your Profiles <ArrowRight size={18} />
               </Link>
+
+              {/* Sign In — becomes red primary when clicked */}
               <Link
                 to="/login"
+                onClick={handleSignIn}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
-                  background: 'transparent', color: 'var(--text-secondary)',
+                  background: leaving ? 'var(--accent)' : 'transparent',
+                  color: leaving ? '#fff' : 'var(--text-secondary)',
                   padding: '14px 28px', borderRadius: 'var(--radius-lg)',
-                  fontWeight: 600, fontSize: 'var(--text-lg)', textDecoration: 'none',
-                  border: '1px solid var(--border)',
-                  transition: 'all var(--transition-fast)',
+                  fontWeight: leaving ? 700 : 600,
+                  fontSize: 'var(--text-lg)', textDecoration: 'none',
+                  border: leaving ? '1px solid transparent' : '1px solid var(--border)',
+                  transition: 'all 0.3s ease',
+                  boxShadow: leaving ? 'var(--shadow-accent)' : 'none',
+                  transform: leaving ? 'scale(1.03)' : 'scale(1)',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-muted)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                onMouseEnter={(e) => { if (!leaving) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-muted)'; }}}
+                onMouseLeave={(e) => { if (!leaving) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}}
               >
                 Sign In
               </Link>

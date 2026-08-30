@@ -10,6 +10,12 @@ export function useAuth() {
     const res = await authApi.login(credentials);
     const u = res.data?.data?.user || res.data?.data;
     setUser(u);
+    try {
+      const meRes = await authApi.getMe();
+      if (meRes.data?.data) {
+        setUser(meRes.data.data);
+      }
+    } catch (_) {}
     return u;
   }
 

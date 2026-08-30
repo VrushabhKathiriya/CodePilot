@@ -43,17 +43,6 @@ export default function DonutChart({ data = [], height = 240, innerRadius = 60, 
           <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
-      {/* Center label */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        textAlign: 'center', pointerEvents: 'none',
-      }}>
-        <p style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-2xl)', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
-          {total}
-        </p>
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{label}</p>
-      </div>
     </div>
   );
 }

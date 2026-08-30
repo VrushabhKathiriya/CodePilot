@@ -43,6 +43,16 @@ app.use(cookieParser());
 // SECURITY HEADERS
 app.use(helmet());
 
+// STARTUP — seed upcoming contests immediately on boot
+(async () => {
+    try {
+        const count = await runUpcomingContestsRefresh();
+        console.log(`[startup] Upcoming contests seeded — ${count} contests stored`);
+    } catch (error) {
+        console.error("[startup] Failed to seed upcoming contests:", error.message);
+    }
+})();
+
 // CRON — refresh upcoming contests every 6 hours
 cron.schedule("0 */6 * * *", async () => {
     try {

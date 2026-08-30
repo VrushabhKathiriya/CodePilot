@@ -1,22 +1,22 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, BarChart3, Bot, BookOpen, Briefcase,
-  Settings, User, ChevronLeft, ChevronRight, Zap,
+  LayoutDashboard, Bot, BookOpen, Briefcase,
+  Settings, User, ChevronLeft, ChevronRight, Zap, Globe,
 } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 
 const NAV_ITEMS = [
-  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/analytics',       icon: BarChart3,        label: 'Analytics' },
-  { to: '/ai-coach',        icon: Bot,              label: 'AI Coach' },
-  { to: '/recommendations', icon: BookOpen,         label: 'Recommendations' },
-  { to: '/career',          icon: Briefcase,        label: 'Career' },
+  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',       dynamic: false },
+  { to: '/ai-coach',        icon: Bot,              label: 'AI Coach',         dynamic: false },
+  { to: '/recommendations', icon: BookOpen,         label: 'Recommendations', dynamic: false },
+  { to: '/career',          icon: Briefcase,        label: 'Career',          dynamic: false },
+  { to: '/portfolio/',      icon: Globe,            label: 'Portfolio',        dynamic: true  },
 ];
 
 const BOTTOM_ITEMS = [
-  { to: '/profile',  icon: User,     label: 'Profile' },
+  { to: '/profile', icon: User, label: 'Profile' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -38,63 +38,73 @@ export default function Sidebar() {
       flexDirection: 'column',
       transition: 'width var(--transition-base)',
       zIndex: 'var(--z-sticky)',
-      overflow: 'hidden',
+      overflow: 'visible',
     }}>
-      {/* Logo */}
+      {/* Logo Header */}
       <div style={{
-        padding: sidebarOpen ? '20px 20px 20px 20px' : '20px 0',
+        height: 64,
+        padding: sidebarOpen ? '0 16px' : '0',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: sidebarOpen ? 'space-between' : 'center',
+        justifyContent: sidebarOpen ? 'flex-start' : 'center',
         borderBottom: '1px solid var(--border)',
-        minHeight: 64,
+        position: 'relative',
+        flexShrink: 0,
       }}>
-        {sidebarOpen && (
-          <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-            <div style={{
-              width: 32, height: 32,
-              background: 'var(--accent)',
-              borderRadius: 'var(--radius-md)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Zap size={18} color="#fff" />
-            </div>
+        <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <div style={{
+            width: 34, height: 34,
+            background: 'var(--accent)',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Zap size={18} color="#fff" />
+          </div>
+          {sidebarOpen && (
             <span style={{
               fontFamily: 'var(--font-heading)',
               fontWeight: 700,
               fontSize: 'var(--text-lg)',
               color: 'var(--text-primary)',
               letterSpacing: '-0.02em',
+              whiteSpace: 'nowrap',
             }}>
               Code<span style={{ color: 'var(--accent)' }}>Pilot</span>
             </span>
-          </Link>
-        )}
-        {!sidebarOpen && (
-          <Link to="/dashboard">
-            <div style={{
-              width: 32, height: 32,
-              background: 'var(--accent)',
-              borderRadius: 'var(--radius-md)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Zap size={18} color="#fff" />
-            </div>
-          </Link>
-        )}
+          )}
+        </Link>
+
+        {/* Toggle Button floating on right border, centered vertically in header */}
         <button
           onClick={toggleSidebar}
+          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           style={{
-            background: 'var(--bg-card)',
+            position: 'absolute',
+            right: -12,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            background: 'var(--bg-elevated)',
             border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            width: 24, height: 24,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: 'var(--text-muted)',
-            flexShrink: 0,
-            ...(sidebarOpen ? {} : { position: 'absolute', right: -12, top: 20,
-              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-              borderRadius: '50%', width: 24, height: 24, zIndex: 10 }),
+            borderRadius: '50%',
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: 'var(--text-muted)',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+            zIndex: 100,
+            transition: 'all var(--transition-fast)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--accent)';
+            e.currentTarget.style.borderColor = 'var(--accent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-muted)';
+            e.currentTarget.style.borderColor = 'var(--border)';
           }}
         >
           {sidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
@@ -103,11 +113,14 @@ export default function Sidebar() {
 
       {/* Nav Items */}
       <nav style={{ flex: 1, padding: '12px 0', overflowY: 'auto', overflowX: 'hidden' }}>
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => {
-          const active = location.pathname === to;
+        {NAV_ITEMS.map(({ to: baseTo, icon: Icon, label, dynamic: isDynamic }) => {
+          const to = isDynamic ? baseTo + (user?.username || '') : baseTo;
+          const active = isDynamic
+            ? location.pathname.startsWith('/portfolio/')
+            : location.pathname === baseTo;
           return (
             <Link
-              key={to}
+              key={baseTo}
               to={to}
               title={!sidebarOpen ? label : undefined}
               style={{
@@ -145,7 +158,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom */}
+      {/* Bottom Items */}
       <div style={{ borderTop: '1px solid var(--border)', padding: '8px 0' }}>
         {BOTTOM_ITEMS.map(({ to, icon: Icon, label }) => {
           const active = location.pathname === to;
@@ -176,7 +189,7 @@ export default function Sidebar() {
           );
         })}
 
-        {/* User avatar */}
+        {/* User avatar when expanded */}
         {sidebarOpen && user && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
@@ -212,7 +225,30 @@ export default function Sidebar() {
             </div>
           </div>
         )}
+
+        {/* User avatar when collapsed */}
+        {!sidebarOpen && user && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '12px 0', marginTop: 4,
+            borderTop: '1px solid var(--border)',
+          }} title={user.name || user.username}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              background: 'var(--accent-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--accent)',
+              flexShrink: 0, overflow: 'hidden',
+            }}>
+              {user.avatar
+                ? <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (user.name || user.username || 'U')[0].toUpperCase()
+              }
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );
 }
+

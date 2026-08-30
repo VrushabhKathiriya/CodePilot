@@ -21,7 +21,18 @@ export default function SettingsPage() {
   const { user } = useAuthStore();
   const toast = useToast();
 
-  useEffect(() => { document.title = 'Settings — CodePilot'; }, []);
+  useEffect(() => {
+    document.title = 'Settings — CodePilot';
+    async function loadFreshUser() {
+      try {
+        const res = await authApi.getMe();
+        if (res.data?.data) {
+          useAuthStore.getState().setUser(res.data.data);
+        }
+      } catch (_) {}
+    }
+    loadFreshUser();
+  }, []);
 
   return (
     <PageWrapper title="Settings">

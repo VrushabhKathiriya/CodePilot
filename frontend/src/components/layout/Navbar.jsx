@@ -1,11 +1,29 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Bell, LogOut, Zap } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useUIStore } from '../../store/uiStore';
 
 // Public Navbar (Landing + Auth pages)
 export function PublicNavbar() {
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const [leaving, setLeaving] = useState(false);
+
+  const onLoginPage    = location.pathname === '/login';
+  const onRegisterPage = location.pathname === '/register';
+
+  // On landing page: animate swap on click. On auth pages: use route-based styling.
+  const signInActive    = onLoginPage    || leaving;
+  const getStartedActive = onRegisterPage || (!leaving && !onLoginPage);
+
+  function handleSignIn(e) {
+    if (onLoginPage) return; // already here
+    e.preventDefault();
+    setLeaving(true);
+    setTimeout(() => navigate('/login'), 350);
+  }
+
   return (
     <header style={{
       position: 'fixed', top: 0, left: 0, right: 0,
@@ -29,17 +47,39 @@ export function PublicNavbar() {
           </span>
         </Link>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-          <Link to="/login" style={{
-            color: 'var(--text-secondary)', textDecoration: 'none',
-            fontSize: 'var(--text-sm)', fontWeight: 500,
-            transition: 'color var(--transition-fast)',
-          }}>Sign in</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Sign in */}
+          <Link
+            to="/login"
+            onClick={handleSignIn}
+            style={{
+              textDecoration: 'none',
+              fontSize: 'var(--text-sm)',
+              fontWeight: signInActive ? 600 : 500,
+              padding: '7px 16px',
+              borderRadius: 'var(--radius-md)',
+              transition: 'all 0.3s ease',
+              background:  signInActive ? 'var(--accent)' : 'transparent',
+              color:       signInActive ? '#fff' : 'var(--text-secondary)',
+              border:      signInActive ? '1px solid transparent' : '1px solid transparent',
+              boxShadow:   signInActive ? 'var(--shadow-accent)' : 'none',
+            }}
+            onMouseEnter={(e) => { if (!signInActive) { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-muted)'; }}}
+            onMouseLeave={(e) => { if (!signInActive) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}}
+          >Sign in</Link>
+
+          {/* Get Started */}
           <Link to="/register" style={{
-            background: 'var(--accent)', color: '#fff',
-            padding: '8px 18px', borderRadius: 'var(--radius-md)',
-            fontSize: 'var(--text-sm)', fontWeight: 600, textDecoration: 'none',
-            transition: 'background var(--transition-fast)',
+            textDecoration: 'none',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 600,
+            padding: '7px 16px',
+            borderRadius: 'var(--radius-md)',
+            transition: 'all 0.3s ease',
+            background:  getStartedActive ? 'var(--accent)' : 'transparent',
+            color:       getStartedActive ? '#fff' : 'var(--text-muted)',
+            border:      getStartedActive ? '1px solid transparent' : '1px solid var(--border)',
+            boxShadow:   getStartedActive ? 'var(--shadow-accent)' : 'none',
           }}>Get Started</Link>
         </div>
       </div>

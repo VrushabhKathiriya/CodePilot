@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart,
+  XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -22,18 +22,10 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-// CSS 3D perspective wrapper creates the "3D chart" effect
 function Perspective3DWrapper({ children, tilt = 8 }) {
   return (
-    <div style={{
-      perspective: '1200px',
-      perspectiveOrigin: '50% 20%',
-    }}>
-      <div style={{
-        transform: `rotateX(${tilt}deg)`,
-        transformOrigin: 'top center',
-        transition: 'transform var(--transition-slow)',
-      }}
+    <div style={{ perspective: '1200px', perspectiveOrigin: '50% 20%' }}>
+      <div style={{ transform: `rotateX(${tilt}deg)`, transformOrigin: 'top center', transition: 'transform var(--transition-slow)' }}
         onMouseEnter={(e) => { e.currentTarget.style.transform = 'rotateX(0deg)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.transform = `rotateX(${tilt}deg)`; }}
       >
@@ -44,13 +36,19 @@ function Perspective3DWrapper({ children, tilt = 8 }) {
 }
 
 export default function RatingLineChart({ data = [], lines = [], height = 260, use3D = true }) {
-  // data: [{ date: 'Jan', codeforces: 1400, leetcode: 1700 }, ...]
   const Wrapper = use3D ? Perspective3DWrapper : React.Fragment;
+
+  // Compute domain so the max rating point is never clipped
+  const allValues = data.flatMap(d => lines.map(l => d[l.key]).filter(v => v != null));
+  const dataMin   = allValues.length > 0 ? Math.min(...allValues) : 0;
+  const dataMax   = allValues.length > 0 ? Math.max(...allValues) : 100;
+  const yMin      = Math.floor(dataMin * 0.97);          // 3% breathing room below
+  const yMax      = Math.ceil(dataMax  * 1.04);          // 4% breathing room above
 
   return (
     <Wrapper>
       <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 16, right: 24, left: -20, bottom: 0 }}>
           <defs>
             {lines.map((l) => (
               <linearGradient key={l.key} id={`grad-${l.key}`} x1="0" y1="0" x2="0" y2="1">
@@ -65,8 +63,10 @@ export default function RatingLineChart({ data = [], lines = [], height = 260, u
             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
             axisLine={{ stroke: 'var(--border)' }}
             tickLine={false}
+            interval="preserveStartEnd"
           />
           <YAxis
+            domain={[yMin, yMax]}
             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
             axisLine={false}
             tickLine={false}

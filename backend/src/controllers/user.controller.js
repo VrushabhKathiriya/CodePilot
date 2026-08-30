@@ -197,7 +197,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     };
 
     return res
@@ -236,6 +236,10 @@ export const loginUser = asyncHandler(async (req, res) => {
                 email ? { email: email.toLowerCase().trim() } : {},
                 username ? { username: username.toLowerCase().trim() } : {},
             ],
+        },
+        include: {
+            profile: true,
+            codingPlatformStats: true,
         },
     });
 
@@ -285,7 +289,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     };
 
     return res
@@ -303,9 +307,11 @@ export const loginUser = asyncHandler(async (req, res) => {
                     fullName: user.fullName,
                     username: user.username,
                     email: user.email,
+                    profile: user.profile,
+                    codingPlatformStats: user.codingPlatformStats,
                 },
             },
-            "Login successful"
+            "Login successfull"
         )
     );
 });
@@ -380,7 +386,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     };
 
     return res
@@ -414,7 +420,7 @@ export const logoutUser = asyncHandler(async (req, res) => {
     const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     };
 
     return res
@@ -447,12 +453,15 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
             educations:   true,
             experiences:  true,
             achievements: true,
-            projects:     true,
+            projects: {
+                orderBy: { displayOrder: "asc" }
+            },
             socialLinks:  true,
             codingPlatformStats: true,
         }
     });
 
+    //Because frontend have the properties names like education and experience which are not compitable with backend naming so that we need to put it again
     const responseData = {
         ...fullUser,
         education: fullUser.educations,
@@ -1061,7 +1070,7 @@ export const deleteAccount = asyncHandler(async (req, res) => {
     const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     };
 
     return res

@@ -1,35 +1,7 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-let transporter = null;
-
-const createTransporter = async () => {
-    if (transporter) return transporter;
-
-    const isProduction = process.env.NODE_ENV === "production";
-
-    transporter = nodemailer.createTransport({
-        host:   process.env.SMTP_HOST,
-        port:   isProduction ? 465 : Number(process.env.SMTP_PORT || 587),
-        secure: isProduction, // true for port 465 (SSL), false for 587 (STARTTLS)
-        connectionTimeout: 10000, // fail after 10s if can't connect
-        greetingTimeout:   10000, // fail after 10s if no greeting
-        socketTimeout:     10000, // fail after 10s of inactivity
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-    });
-
-    try {
-        await transporter.verify();
-        console.log("[email] SMTP transporter connected successfully");
-    } catch (err) {
-        console.error("[email] SMTP verify failed:", err.message);
-        transporter = null; // reset so next call retries
-    }
-
-    return transporter;
-};
+// Resend uses HTTP API — no SMTP ports needed, works on all hosting platforms
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // OTP EMAIL TEMPLATE
 const buildOtpEmailHtml = (otp, purpose) => {
@@ -89,25 +61,29 @@ const buildOtpEmailHtml = (otp, purpose) => {
 };
 
 export const sendOtpEmail = async (email, otp, purpose = "REGISTER") => {
+    const subjectMap = {
+        REGISTER:       "CodePilot — Verify Your Email",
+        PASSWORD_RESET: "CodePilot — Reset Your Password",
+        EMAIL_CHANGE:   "CodePilot — Confirm Email Change",
+    };
+
     try {
-        const mailer = await createTransporter();
-
-        const subjectMap = {
-            REGISTER:       "CodePilot — Verify Your Email",
-            PASSWORD_RESET: "CodePilot — Reset Your Password",
-            EMAIL_CHANGE:   "CodePilot — Confirm Email Change",
-        };
-
-
-        await mailer.sendMail({
-            from:    `"CodePilot" <${process.env.MAIL_FROM}>`,
+        const { data, error } = await resend.emails.send({
+            from:    process.env.MAIL_FROM || "CodePilot <onboarding@resend.dev>",
             to:      email,
             subject: subjectMap[purpose] || "CodePilot — OTP Code",
             html:    buildOtpEmailHtml(otp, purpose),
         });
+
+        if (error) {
+            console.error("[email] Resend error:", error);
+            throw new Error(error.message);
+        }
+
+        console.log(`[email] OTP sent to ${email} — id: ${data?.id}`);
     } catch (error) {
         if (process.env.NODE_ENV === "development") {
-            console.log(`\n[DEV MODE] SMTP failed. OTP for ${email} is: ${otp}\n`);
+            console.log(`\n[DEV MODE] Email failed. OTP for ${email} is: ${otp}\n`);
             return; // Gracefully continue in dev
         }
         throw error;

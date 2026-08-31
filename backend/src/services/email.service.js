@@ -1,7 +1,5 @@
-import { Resend } from "resend";
-
-// Resend uses HTTP API — no SMTP ports needed, works on all hosting platforms
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Uses Brevo HTTP API (port 443) — works on Render free tier unlike SMTP (port 465/587)
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 // OTP EMAIL TEMPLATE
 const buildOtpEmailHtml = (otp, purpose) => {
@@ -68,19 +66,30 @@ export const sendOtpEmail = async (email, otp, purpose = "REGISTER") => {
     };
 
     try {
-        const { data, error } = await resend.emails.send({
-            from:    process.env.MAIL_FROM || "CodePilot <onboarding@resend.dev>",
-            to:      email,
-            subject: subjectMap[purpose] || "CodePilot — OTP Code",
-            html:    buildOtpEmailHtml(otp, purpose),
+        const response = await fetch(BREVO_API_URL, {
+            method: "POST",
+            headers: {
+                "accept":       "application/json",
+                "api-key":      process.env.BREVO_API_KEY,
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({
+                sender:      { name: "CodePilot", email: process.env.MAIL_FROM },
+                to:          [{ email }],
+                subject:     subjectMap[purpose] || "CodePilot — OTP Code",
+                htmlContent: buildOtpEmailHtml(otp, purpose),
+            }),
         });
 
-        if (error) {
-            console.error("[email] Resend error:", error);
-            throw new Error(error.message);
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("[email] Brevo API error:", errorData);
+            throw new Error(errorData.message || "Failed to send email via Brevo API");
         }
 
-        console.log(`[email] OTP sent to ${email} — id: ${data?.id}`);
+        const data = await response.json();
+        console.log(`[email] OTP sent to ${email} — messageId: ${data.messageId}`);
+
     } catch (error) {
         if (process.env.NODE_ENV === "development") {
             console.log(`\n[DEV MODE] Email failed. OTP for ${email} is: ${otp}\n`);

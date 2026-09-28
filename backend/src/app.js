@@ -12,6 +12,7 @@ import aiRouter from "./routes/ai.routes.js";
 import recommendationRouter from "./routes/recommendation.routes.js";
 import portfolioRoutes from "./routes/portfolio.routes.js";
 import careerReadinessRoutes from "./routes/careerreadiness.routes.js";
+import { seedProblemsIfEmpty } from "./services/seedProblems.service.js";
 
 const app = express();
 
@@ -50,6 +51,17 @@ app.use(helmet());
         console.log(`[startup] Upcoming contests seeded — ${count} contests stored`);
     } catch (error) {
         console.error("[startup] Failed to seed upcoming contests:", error.message);
+    }
+})();
+
+// STARTUP — seed problem bank if empty (runs once, skips if already populated)
+(async () => {
+    try {
+        const inserted = await seedProblemsIfEmpty();
+        if (inserted > 0) console.log(`[startup] Problem bank seeded — ${inserted} problems inserted`);
+        else console.log(`[startup] Problem bank already populated — skipping seed`);
+    } catch (error) {
+        console.error("[startup] Failed to seed problem bank:", error.message);
     }
 })();
 

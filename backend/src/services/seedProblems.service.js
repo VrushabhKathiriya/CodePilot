@@ -294,15 +294,23 @@ const problems = [
 ];
 
 /**
- * Seeds the Problem table if it is empty.
- * Called once at server startup — does nothing if problems already exist.
- * Returns the number of problems inserted (0 if already seeded).
+ * Seeds the Problem table on startup.
+ * Verifies data integrity — if the table has rows but no usable LEETCODE problems,
+ * it clears the table and re-seeds to fix any corrupted/mismatched data.
+ * Returns the number of problems inserted (0 if already correctly seeded).
  */
 export const seedProblemsIfEmpty = async () => {
-    const existing = await prisma.problem.count();
-    if (existing > 0) {
-        return 0; // already seeded, skip
+    // Check for a real usable row, not just any row count
+    const sample = await prisma.problem.findFirst({
+        where: { topic: "Array", platform: "LEETCODE" },
+    });
+
+    if (sample) {
+        return 0; // already correctly seeded, skip
     }
+
+    // Table is either empty OR has wrong/mismatched data — clear and re-seed
+    await prisma.problem.deleteMany({});
 
     let created = 0;
     for (const problem of problems) {

@@ -23,14 +23,20 @@ const CACHE_HOURS = {
 };
 
 // CALL GEMINI
-const callGemini = async (prompt) => {
-    if (!genAI) return null;
+const callGemini = async (prompt, type) => {
+    if (!genAI) {
+        console.log(`[aiCoach] Gemini not initialized — GEMINI_API_KEY missing. Using rule-based fallback for ${type}.`);
+        return null;
+    }
 
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const result = await model.generateContent(prompt);
-        return result.response.text().trim();
-    } catch {
+        const text = result.response.text().trim();
+        console.log(`[aiCoach] Gemini generated ${type} insight (${text.length} chars)`);
+        return text;
+    } catch (err) {
+        console.error(`[aiCoach] Gemini failed for ${type}:`, err.message);
         return null;
     }
 };
@@ -64,11 +70,13 @@ const generateInsight = async (userId, insightType, forceRefresh = false) => {
     const analytics = await buildEnrichedAnalytics(userId);
 
     // CALL AI — fallback to rule-based if Gemini fails
-    const prompt = buildCoachPrompt(insightType.toLowerCase(), analytics);
-    let insightText = await callGemini(prompt);
+    const typeKey = insightType.toLowerCase();
+    const prompt = buildCoachPrompt(typeKey, analytics);
+    let insightText = await callGemini(prompt, insightType);
 
     if (!insightText) {
-        insightText = generateRuleBasedInsights(analytics).join("\n\n");
+        console.log(`[aiCoach] Using rule-based fallback for ${insightType}`);
+        insightText = generateRuleBasedInsights(analytics, typeKey).join("\n\n");
     }
 
     // SAVE TO DB

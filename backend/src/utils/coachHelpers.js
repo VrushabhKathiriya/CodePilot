@@ -1,78 +1,141 @@
-// RULE-BASED INSIGHTS
-export const generateRuleBasedInsights = (analytics) => {
-    const insights = [];
-    const { perPlatform, totals, topicStats, weakTopics, strongTopics, contestAnalytics } = analytics;
+// ─── RULE-BASED FALLBACK (type-aware) ────────────────────────────────────────
+export const generateRuleBasedInsights = (analytics, type = "daily") => {
+    const { perPlatform, totals, weakTopics, strongTopics, contestAnalytics } = analytics;
 
-    if (strongTopics && strongTopics.length > 0) {
-        insights.push(`Your ${strongTopics[0]} skills are excellent — keep pushing to harder problems in this area.`);
+    const platform    = perPlatform?.[0];
+    const totalSolved = totals?.totalSolved || 0;
+    const rating      = platform?.currentRating;
+    const growth      = platform?.monthlyGrowth;
+
+    // ─── DAILY ───────────────────────────────────────────────────────────────
+    if (type === "daily") {
+        const lines = [];
+
+        if (weakTopics?.length)
+            lines.push(`Today's focus: practice ${weakTopics[0]}${weakTopics[1] ? ` and ${weakTopics[1]}` : ""} — these are your weakest areas right now.`);
+
+        if (rating)
+            lines.push(`Solve 2-3 problems in the ${rating - 100}–${rating + 100} rating range on ${platform.platform} to stay in your growth zone.`);
+
+        if (totalSolved < 100)
+            lines.push(`You've solved ${totalSolved} problems — aim for at least 2 problems today to build consistency.`);
+        else if (totalSolved < 300)
+            lines.push(`Good volume at ${totalSolved} problems — push yourself with at least one MEDIUM or HARD problem today.`);
+        else
+            lines.push(`${totalSolved} problems solved — stay sharp by attempting at least one HARD problem today.`);
+
+        if (strongTopics?.length)
+            lines.push(`Your ${strongTopics[0]} is a strength — use it in contests to score early points confidently.`);
+
+        if (lines.length === 0)
+            lines.push(`Solve 2-3 problems today. Sync your LeetCode or Codeforces account to get personalized daily targets.`);
+
+        return lines;
     }
 
-    if (weakTopics && weakTopics.length > 0) {
-        insights.push(`Focus more on ${weakTopics.join(" and ")} — these are your weakest areas right now.`);
+    // ─── WEEKLY ──────────────────────────────────────────────────────────────
+    if (type === "weekly") {
+        const weeklyTarget = totalSolved < 100 ? 15 : 20;
+        const lines = [
+            `Weekly target: ${weeklyTarget}+ problems across varied topics.`,
+        ];
+
+        if (weakTopics?.length > 0)
+            lines.push(`This week's priority topics: ${weakTopics.slice(0, 3).join(", ")}. Spend at least 2 days focused on these.`);
+
+        if (contestAnalytics?.totalContests < 3)
+            lines.push(`You've participated in only ${contestAnalytics?.totalContests || 0} contests — join at least 1 contest this week to benchmark your progress.`);
+        else
+            lines.push(`Maintain your contest habit: participate in at least 1 rated contest this week.`);
+
+        if (growth !== null && growth !== undefined)
+            lines.push(growth > 0
+                ? `Your rating grew +${growth} last month — keep the momentum by upsolving problems you couldn't solve in contests.`
+                : `Rating dipped ${Math.abs(growth)} last month — this week focus on consistency over difficulty.`);
+
+        lines.push(`End-of-week goal: review all problems you got wrong or couldn't solve, and understand the solution patterns.`);
+
+        return lines;
     }
 
-    if (topicStats && topicStats.length > 0) {
-        for (const topic of topicStats) {
-            if (topic.accuracy !== null && topic.accuracy !== undefined && topic.accuracy < 60) {
-                insights.push(`${topic.topic} accuracy is only ${topic.accuracy}%. Practice more problems in this topic.`);
-                break;
+    // ─── MONTHLY ─────────────────────────────────────────────────────────────
+    if (type === "monthly") {
+        const lines = [
+            `Monthly snapshot: ${totalSolved} total problems solved across all platforms.`,
+        ];
+
+        for (const p of (perPlatform || [])) {
+            if (p.currentRating) {
+                const sign = (p.monthlyGrowth >= 0) ? "+" : "";
+                lines.push(`${p.platform}: current rating ${p.currentRating}${p.monthlyGrowth != null ? `, ${sign}${p.monthlyGrowth} this month` : ""}.`);
             }
         }
+
+        if (weakTopics?.length)
+            lines.push(`Biggest gaps to close this month: ${weakTopics.slice(0, 4).join(", ")}.`);
+
+        const contestCount = contestAnalytics?.totalContests || 0;
+        lines.push(`Contests this period: ${contestCount}. Target for next month: ${contestCount + 4} contests minimum.`);
+
+        if (rating)
+            lines.push(`Rating milestone to aim for: ${rating + 100}. This requires consistent daily practice and 4+ contests.`);
+
+        lines.push(`Next month strategy: increase HARD problem ratio to 25-30% and focus on contest-style timed solving.`);
+
+        return lines;
     }
 
-    for (const platform of (perPlatform || [])) {
-        if (platform.monthlyGrowth !== null && platform.monthlyGrowth !== undefined) {
-            if (platform.monthlyGrowth > 0) {
-                insights.push(`You have improved consistently on ${platform.platform} — +${platform.monthlyGrowth} rating in the last month.`);
-            } else if (platform.monthlyGrowth < -50) {
-                insights.push(`Your ${platform.platform} rating dropped by ${Math.abs(platform.monthlyGrowth)} this month. Review your recent contest performance.`);
-            }
+    // ─── CONTEST REVIEW ──────────────────────────────────────────────────────
+    if (type === "contest_review") {
+        const lines = [];
+
+        const total = contestAnalytics?.totalContests || 0;
+        if (total === 0) {
+            lines.push(`No contest history found yet. Start with Codeforces Div. 3 or Div. 4 contests — they're beginner-friendly and rated.`);
+            lines.push(`LeetCode Weekly/Biweekly contests are also great for practice at any level.`);
+        } else {
+            lines.push(`Contest history: ${total} contests participated so far.`);
+            if (contestAnalytics?.averageRank)
+                lines.push(`Average rank: ${contestAnalytics.averageRank}. Aim to break into the top 30% by solving problems 1-2 in under 10 minutes.`);
+            if (growth > 0)
+                lines.push(`Positive rating trend (+${growth} last month) — your contest consistency is paying off.`);
+            else if (growth < -30)
+                lines.push(`Rating dropped ${Math.abs(growth)} last month — focus on upsolving: after each contest, solve the problems you couldn't during the contest.`);
         }
+
+        if (weakTopics?.length)
+            lines.push(`Contest weak spots: ${weakTopics.slice(0, 2).join(" and ")} frequently appear in contests — targeted practice here will directly improve your rank.`);
+
+        lines.push(`Next contest strategy: solve problem 1 in under 5 min, problem 2 in under 15 min — this alone pushes you into the top 40%.`);
+
+        return lines;
     }
 
-    if (contestAnalytics) {
-        if (contestAnalytics.totalContests < 5) {
-            insights.push("You've participated in very few contests. Regular contest practice is key to improving under pressure.");
-        }
-        if (contestAnalytics.averageRank && contestAnalytics.averageRank > 5000) {
-            insights.push("Your average contest rank is quite high. Focus on solving the first 2-3 problems quickly.");
-        }
+    // ─── STUDY PLAN ──────────────────────────────────────────────────────────
+    if (type === "study_plan") {
+        const lines = [
+            `Daily routine: 1 easy warm-up + 1-2 medium/hard problems = 2-3 problems/day.`,
+        ];
+
+        if (weakTopics?.length)
+            lines.push(`Weeks 1-2: Drill ${weakTopics.slice(0, 2).join(" and ")} — complete 5 problems per topic each week.`);
+
+        if (weakTopics?.length > 2)
+            lines.push(`Weeks 3-4: Move to ${weakTopics.slice(2, 4).join(" and ")} — continue the same 5 problems/week/topic pattern.`);
+
+        if (rating)
+            lines.push(`Rating target for 4 weeks: ${rating + 100}. This is achievable with 20+ problems/week + 1 contest/week.`);
+
+        lines.push(`Never skip your weekly contest — it's the most accurate measure of real competitive ability.`);
+
+        return lines;
     }
 
-    if (totals) {
-        if (totals.totalSolved < 50) {
-            insights.push("You've solved fewer than 50 problems. Aim for at least 100 to build strong fundamentals.");
-        } else if (totals.totalSolved >= 200) {
-            insights.push(`Great volume — ${totals.totalSolved} problems solved! Now focus on difficulty progression.`);
-        }
-    }
-
-    for (const platform of (perPlatform || [])) {
-        if (platform.currentRating) {
-            const suggestedMin = platform.currentRating - 200;
-            const suggestedMax = platform.currentRating + 200;
-            insights.push(`Focus on ${suggestedMin}–${suggestedMax} rated problems on ${platform.platform} for optimal growth.`);
-            break;
-        }
-    }
-
-    const growths = (perPlatform || []).map(p => p.monthlyGrowth).filter(g => g !== null);
-    if (growths.length > 0) {
-        const avgGrowth = growths.reduce((a, b) => a + b, 0) / growths.length;
-        if (avgGrowth > 0) {
-            const twoMonthGain = Math.round(avgGrowth * 2);
-            insights.push(`Expected rating improvement: +${Math.round(avgGrowth)} to +${twoMonthGain} within the next 2 months if current practice continues.`);
-        }
-    }
-
-    if (insights.length === 0) {
-        insights.push("Keep solving problems and participating in contests. More data will unlock detailed coaching insights.");
-    }
-
-    return insights;
+    return ["Keep solving problems and participating in contests. Sync your accounts for personalized coaching insights."];
 };
 
-// ANALYTICS SUMMARY BLOCK
+
+// ─── ANALYTICS SUMMARY BLOCK ─────────────────────────────────────────────────
 const buildAnalyticsSummaryBlock = (analytics) => {
     const { perPlatform, totals, topicStats, weakTopics, strongTopics } = analytics;
 
@@ -91,7 +154,6 @@ const buildAnalyticsSummaryBlock = (analytics) => {
         .map(t => {
             let line = `${t.topic}: ${t.problemCount || t.solved || 0} problems solved`;
             if (t.accuracy !== null && t.accuracy !== undefined) line += `, ${t.accuracy}% accuracy`;
-            if (t.weaknessScore !== undefined) line += `, weakness score: ${t.weaknessScore}`;
             return line;
         })
         .join("\n");
@@ -105,63 +167,69 @@ TOTAL CONTESTS: ${totals?.totalContests || 0}
 TOPIC BREAKDOWN:
 ${topicSummary || "No topic data available yet"}
 
-WEAK TOPICS: ${(weakTopics || []).join(", ") || "Not enough data yet"}
+WEAK TOPICS:   ${(weakTopics  || []).join(", ") || "Not enough data yet"}
 STRONG TOPICS: ${(strongTopics || []).join(", ") || "Not enough data yet"}`;
 };
 
-// BUILD COACH PROMPT
+
+// ─── BUILD GEMINI PROMPT ──────────────────────────────────────────────────────
 export const buildCoachPrompt = (type, analytics) => {
     const dataBlock = buildAnalyticsSummaryBlock(analytics);
 
     const prompts = {
-        daily: `You are a competitive programming coach giving daily feedback. Based on the student's data below, give 3-4 short, actionable coaching sentences for today. Be direct about what to practice today. Reference actual numbers.
+        daily: `You are a competitive programming coach giving a DAILY coaching note.
+Based on the student data below, write 3-4 SHORT, SPECIFIC, ACTIONABLE sentences for TODAY only.
+Tell the student exactly what topic to practice today and how many problems to solve.
+Reference their actual rating and weak topics by name.
 
 ${dataBlock}
 
-Write your daily feedback now. Keep it to 3-4 sentences. Plain conversational text, no markdown.`,
+Write the daily note now. 3-4 sentences max. Plain text, no bullet points, no markdown.`,
 
-        weekly: `You are a competitive programming coach writing a weekly report. Based on the student's data below, provide:
-1. This week's highlights (what went well)
-2. Areas that need work
-3. Specific goals for next week
-4. Motivational closing
-
-${dataBlock}
-
-Write the weekly report now. Keep it under 200 words. Plain conversational text, no markdown formatting.`,
-
-        monthly: `You are a competitive programming coach writing a monthly progress report. Based on the student's data below, provide a thorough analysis:
-1. Overall progress summary
-2. Rating trajectory analysis
-3. Topic-wise strengths and gaps
-4. Contest performance review
-5. Recommended focus for next month
-6. Predicted rating trajectory if current pace continues
+        weekly: `You are a competitive programming coach writing a WEEKLY PLAN.
+Based on the student data below, write a focused plan for the NEXT 7 DAYS covering:
+1. Problems-per-day target
+2. Which 2-3 weak topics to focus on this week
+3. Contest participation goal
+4. One specific thing to upsolve or review
 
 ${dataBlock}
 
-Write the monthly report now. Keep it under 350 words. Plain conversational text, no markdown formatting.`,
+Write the weekly plan now. Under 180 words. Plain conversational text, no markdown headers.`,
 
-        contest_review: `You are a competitive programming coach reviewing a student's recent contest performance. Based on the data below, analyze:
-1. Performance trend across recent contests
-2. What's working well
-3. What's costing rating points
-4. Specific improvement strategies for next contest
-
-${dataBlock}
-
-Write the contest review now. Keep it under 200 words. Plain conversational text, no markdown formatting.`,
-
-        study_plan: `You are a competitive programming coach creating a personalized study plan. Based on the student's data below, create a structured plan:
-1. Daily practice targets (number of problems, difficulty range)
-2. Weekly topic rotation schedule targeting weak areas
-3. Contest participation strategy
-4. Milestones for the next 4 weeks
-5. Resources or problem types to focus on
+        monthly: `You are a competitive programming coach writing a MONTHLY PROGRESS REPORT.
+Based on the student data below, provide:
+1. Rating progress this month (use exact numbers)
+2. Problem-solving volume analysis
+3. Top 2-3 topic gaps to address next month
+4. Contest performance trend
+5. Specific rating target for next month with a realistic timeline
 
 ${dataBlock}
 
-Write the study plan now. Keep it under 300 words. Plain conversational text, no markdown formatting. Use numbered lists for structure.`,
+Write the monthly report now. Under 300 words. Plain conversational text, no markdown.`,
+
+        contest_review: `You are a competitive programming coach reviewing CONTEST PERFORMANCE.
+Based on the student data below, analyze:
+1. Contest participation frequency (is it enough?)
+2. Rating trend across recent contests
+3. Which topics are costing them points in contests
+4. Exact strategy for their NEXT contest (how to approach problem order, time allocation)
+
+${dataBlock}
+
+Write the contest review now. Under 200 words. Plain conversational text, no markdown.`,
+
+        study_plan: `You are a competitive programming coach creating a 4-WEEK STUDY PLAN.
+Based on the student data below, create a structured plan with:
+1. Daily problem quota (easy/medium/hard breakdown)
+2. Week-by-week topic rotation targeting their weakest areas
+3. Contest schedule (how many per week)
+4. Specific rating milestone for end of 4 weeks
+
+${dataBlock}
+
+Write the study plan now. Under 280 words. Plain text. Use "Week 1:", "Week 2:" labels for structure.`,
     };
 
     return prompts[type] || prompts.daily;

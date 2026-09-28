@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, ArrowLeft, Zap } from 'lucide-react';
+import { Mail, ArrowLeft, Zap, ArrowRight } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { authApi } from '../api/auth.api';
@@ -14,6 +14,7 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => { document.title = 'Forgot Password — CodePilot'; }, []);
 
@@ -62,13 +63,13 @@ export default function ForgotPasswordPage() {
             <>
               <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-3xl)', fontWeight: 800, marginBottom: 6, letterSpacing: '-0.02em' }}>Forgot password</h2>
               <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 'var(--space-8)' }}>
-                Enter your email and we'll send a reset link.
+                Enter your email and we'll send a 6-digit OTP code.
               </p>
               <div style={{ height: 3, width: 40, background: 'var(--accent)', borderRadius: 'var(--radius-full)', marginBottom: 'var(--space-8)' }} />
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
                 <Input label="Email" type="email" placeholder="you@example.com" icon={<Mail size={16} />}
                   value={email} onChange={(e) => setEmail(e.target.value)} />
-                <Button type="submit" loading={loading} fullWidth size="lg">Send Reset Link</Button>
+                <Button type="submit" loading={loading} fullWidth size="lg">Send OTP Code</Button>
               </form>
             </>
           ) : (
@@ -78,8 +79,15 @@ export default function ForgotPasswordPage() {
               </div>
               <h3 style={{ fontFamily: 'var(--font-heading)', marginBottom: 'var(--space-3)' }}>Check your inbox</h3>
               <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 'var(--space-6)' }}>
-                We sent a password reset link to <strong style={{ color: 'var(--text-secondary)' }}>{email}</strong>
+                We sent a 6-digit OTP code to <strong style={{ color: 'var(--text-secondary)' }}>{email}</strong>
               </p>
+              <Button
+                fullWidth
+                size="lg"
+                onClick={() => navigate('/reset-password', { state: { email } })}
+              >
+                Enter OTP &amp; Reset Password <ArrowRight size={16} style={{ marginLeft: 6 }} />
+              </Button>
             </motion.div>
           )}
 

@@ -295,21 +295,18 @@ const problems = [
 
 /**
  * Seeds the Problem table on startup.
- * Verifies data integrity — if the table has rows but no usable LEETCODE problems,
- * it clears the table and re-seeds to fix any corrupted/mismatched data.
- * Returns the number of problems inserted (0 if already correctly seeded).
+ * If the table has fewer than 200 problems (expected: 255), treats it as
+ * incomplete/corrupt and re-seeds from scratch to guarantee all 17 topics are present.
+ * Returns the number of problems inserted (0 if already fully seeded).
  */
 export const seedProblemsIfEmpty = async () => {
-    // Check for a real usable row, not just any row count
-    const sample = await prisma.problem.findFirst({
-        where: { topic: "Array", platform: "LEETCODE" },
-    });
+    const count = await prisma.problem.count();
 
-    if (sample) {
-        return 0; // already correctly seeded, skip
+    if (count >= 200) {
+        return 0; // fully seeded (255 expected), skip
     }
 
-    // Table is either empty OR has wrong/mismatched data — clear and re-seed
+    // Table is empty OR partially seeded — clear everything and re-seed
     await prisma.problem.deleteMany({});
 
     let created = 0;
@@ -320,3 +317,4 @@ export const seedProblemsIfEmpty = async () => {
 
     return created;
 };
+
